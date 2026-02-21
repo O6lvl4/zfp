@@ -9,8 +9,8 @@ Pure comptime generics that compile away completely.
 
 ## Philosophy
 
-- **Do not wrap native types.** `option` works directly on `?T`, not a struct around it.
-- **Zero cost.** Every function is `inline`. The generated code is identical to hand-written `if` blocks.
+- **Do not wrap native types.** `option` works directly on `?T`; `result` works directly on `E!T`.
+- **Zero cost.** Every function is `inline`. The generated code is identical to hand-written `if`/`catch` blocks.
 - **Minimal API.** One function per concept. Composable by design.
 - **Idiomatic Zig.** No macros, no hidden allocations, no magic.
 
@@ -21,6 +21,7 @@ Pure comptime generics that compile away completely.
 | Module | Status | Description |
 |--------|--------|-------------|
 | `option` | ✅ | Utilities for Zig's native `?T` optional type |
+| `result` | ✅ | Utilities for Zig's native `anyerror!T` error union type |
 
 ---
 
@@ -53,8 +54,7 @@ option.isNone(value: ?T) bool
 ### Example: nested-if elimination
 
 ```zig
-const zfp = @import("zfp");
-const opt = zfp.option;
+const option = @import("zfp").option;
 
 // Before — nesting grows with every step
 fn process(input: ?[]const u8) ?i32 {
@@ -69,17 +69,72 @@ fn process(input: ?[]const u8) ?i32 {
 
 // After — flat pipeline, same machine code
 fn process(input: ?[]const u8) ?i32 {
-    return opt.andThen(
-        opt.andThen(input, parseInt),
+    return option.andThen(
+        option.andThen(input, parseInt),
         doubleIfPositive,
     );
 }
 ```
 
-### Why is it zero-cost?
+---
+
+## result
+
+Eliminate nested `try`/`catch` chains without any runtime cost.
+
+### API
+
+```zig
+const result = @import("zfp").result;
+
+// Apply a function to the success value; propagate errors unchanged
+result.map(value: E!T, f: fn(T) U) E!U
+
+// Flatmap — f itself returns an error union
+result.andThen(value: E!T, f: fn(T) E!U) E!U
+
+// Return the success value or a default on error
+result.unwrapOr(value: E!T, default: T) T
+
+// Recover from an error using the error value
+result.unwrapOrElse(value: E!T, f: fn(E) T) T
+
+// Convert to optional, discarding error information
+result.toOption(value: E!T) ?T
+
+// Error checks
+result.isOk(value: E!T) bool
+result.isErr(value: E!T) bool
+```
+
+### Example: pipeline over fallible operations
+
+```zig
+const result = @import("zfp").result;
+
+// Before
+fn process(input: anyerror![]const u8) anyerror!i32 {
+    const s = try input;
+    const n = try std.fmt.parseInt(i32, s, 10);
+    if (n <= 0) return error.OutOfRange;
+    return n * 2;
+}
+
+// After — flat pipeline, same machine code
+fn process(input: anyerror![]const u8) anyerror!i32 {
+    return result.andThen(
+        result.andThen(input, parseInt),
+        doubleIfPositive,
+    );
+}
+```
+
+---
+
+## Why is it zero-cost?
 
 In Zig, `inline fn` with `anytype` parameters is resolved entirely at compile time.
-The compiler sees through every call and generates the same code as the manual `if` version.
+The compiler sees through every call and generates the same code as the manual `if`/`catch` version.
 There is no virtual dispatch, no boxing, and no indirection.
 
 ---
@@ -113,10 +168,10 @@ exe.root_module.addImport("zfp", zfp.module("zfp"));
 
 ```sh
 # Run all tests
-zig build test
-
-# Run tests with summary
 zig build test --summary all
+
+# Generate API documentation
+zig build docs
 ```
 
 Requires Zig `0.15.0` or later.
