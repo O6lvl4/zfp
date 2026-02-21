@@ -48,6 +48,7 @@ Every module must satisfy the core constraints:
 | `pipe` | — | ✅ Done | `run` |
 | `compose` | — | ✅ Done | `from`, `run` |
 | `zf` | — | ✅ Done | `id`, `flip`, `const_`, `on` |
+| `tap` | — | ✅ Done | `run`, `typed` |
 
 ---
 
@@ -55,7 +56,7 @@ Every module must satisfy the core constraints:
 
 ### ~~`zf` — Function combinators~~ ✅ Done
 
-### `tap` — Side-effect injection in pipelines
+### ~~`tap` — Side-effect injection in pipelines~~ ✅ Done
 
 ```zig
 const tap = @import("zfp").tap;
