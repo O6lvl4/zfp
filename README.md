@@ -143,10 +143,10 @@ Apply a sequence of functions to a value, left to right. No allocations, no clos
 const pipe = @import("zfp").pipe;
 
 // Apply functions left to right
-pipe.pipe(value: A, .{ f: A→B, g: B→C, h: C→D }) D
+pipe.run(value: A, .{ f: A→B, g: B→C, h: C→D }) D
 
 // Empty list is the identity
-pipe.pipe(value, .{}) // returns value unchanged
+pipe.run(value, .{}) // returns value unchanged
 ```
 
 ### Example: left-to-right composition
@@ -158,10 +158,10 @@ const pipe = @import("zfp").pipe;
 const result = normalize(clamp(parse(raw)));
 
 // After — pipeline, read left to right
-const result = pipe.pipe(raw, .{ parse, clamp, normalize });
+const result = pipe.run(raw, .{ parse, clamp, normalize });
 
 // Types change naturally across steps
-// pipe(x: i32, .{ double: i32→i32, isPositive: i32→bool }) → bool
+// run(x: i32, .{ double: i32→i32, isPositive: i32→bool }) → bool
 ```
 
 ---
@@ -176,7 +176,7 @@ Compose a sequence of functions into a **reusable callable**. Unlike `pipe` whic
 const compose = @import("zfp").compose;
 
 // Compose functions left to right, return a reusable callable
-const f = compose.compose(.{ g: A→B, h: B→C });
+const f = compose.from(.{ g: A→B, h: B→C });
 f.call(x: A) // → C
 ```
 
@@ -190,7 +190,7 @@ const a = normalize(clamp(parse(raw_a)));
 const b = normalize(clamp(parse(raw_b)));
 
 // After — define once, apply many times
-const process = compose.compose(.{ parse, clamp, normalize });
+const process = compose.from(.{ parse, clamp, normalize });
 const a = process.call(raw_a);
 const b = process.call(raw_b);
 ```

@@ -84,21 +84,21 @@ pub fn Compose(comptime fns: anytype) type {
 
 /// Compose a sequence of functions into a reusable callable, applied left to right.
 ///
-///   compose(.{ f, g, h }).call(x)  ≡  h(g(f(x)))
+///   from(.{ f, g, h }).call(x)  ≡  h(g(f(x)))
 ///
 /// **Reusable**: unlike `pipe`, the result can be stored, named, and called many times.
 ///
-///   const process = compose(.{ trim, parse, validate });
+///   const process = from(.{ trim, parse, validate });
 ///   const a = process.call(input_a);
 ///   const b = process.call(input_b);
 ///
 /// **Types flow through the pipeline**:
 ///
-///   compose(.{ f: A→B, g: B→C }).call(x: A) → C
+///   from(.{ f: A→B, g: B→C }).call(x: A) → C
 ///
 /// **Zero-cost**: the struct has no fields. `call` inlines to the same code as
 /// a hand-written `h(g(f(x)))`.
-pub inline fn compose(comptime fns: anytype) Compose(fns) {
+pub inline fn from(comptime fns: anytype) Compose(fns) {
     return .{};
 }
 
@@ -134,31 +134,31 @@ const isPositive = struct {
 
 test "compose: single function" {
     // 3 → 6
-    const f = compose(.{double});
+    const f = from(.{double});
     try testing.expectEqual(@as(i32, 6), f.call(3));
 }
 
 test "compose: two functions" {
     // 3 → 6 → 7
-    const f = compose(.{ double, addOne });
+    const f = from(.{ double, addOne });
     try testing.expectEqual(@as(i32, 7), f.call(3));
 }
 
 test "compose: three functions" {
     // 3 → 6 → 7 → -7
-    const f = compose(.{ double, addOne, negate });
+    const f = from(.{ double, addOne, negate });
     try testing.expectEqual(@as(i32, -7), f.call(3));
 }
 
 test "compose: type changes across steps" {
     // i32 → i32 → bool
-    const f = compose(.{ double, isPositive });
+    const f = from(.{ double, isPositive });
     try testing.expect(f.call(3));
     try testing.expect(!f.call(0));
 }
 
 test "compose: reusable across multiple inputs" {
-    const f = compose(.{ double, addOne });
+    const f = from(.{ double, addOne });
     // Apply to several values independently
     try testing.expectEqual(@as(i32, 7), f.call(3)); // 3 → 6 → 7
     try testing.expectEqual(@as(i32, 9), f.call(4)); // 4 → 8 → 9
@@ -167,8 +167,8 @@ test "compose: reusable across multiple inputs" {
 
 test "compose: order is left to right" {
     // double then addOne ≠ addOne then double
-    const double_then_add = compose(.{ double, addOne });
-    const add_then_double = compose(.{ addOne, double });
+    const double_then_add = from(.{ double, addOne });
+    const add_then_double = from(.{ addOne, double });
     try testing.expectEqual(@as(i32, 7), double_then_add.call(3)); // 3 → 6 → 7
     try testing.expectEqual(@as(i32, 8), add_then_double.call(3)); // 3 → 4 → 8
 }
@@ -185,7 +185,7 @@ test "compose: string → length → doubled" {
         }
     }.call;
 
-    const f = compose(.{ length, doubleUsize });
+    const f = from(.{ length, doubleUsize });
     // "hello" → 5 → 10
     try testing.expectEqual(@as(usize, 10), f.call("hello"));
     // "hi" → 2 → 4
@@ -196,14 +196,14 @@ test "compose: string → length → doubled" {
 //
 // Define a named transformation once, apply many times:
 //
-//   const normalise = compose.compose(.{ trim, parse, clamp });
+//   const normalise = compose.from(.{ trim, parse, clamp });
 //
 //   const a = normalise.call(raw_a);
 //   const b = normalise.call(raw_b);
 //
 // Compared to pipe (single-use, applied immediately):
 //
-//   const a = pipe.pipe(raw_a, .{ trim, parse, clamp });
-//   const b = pipe.pipe(raw_b, .{ trim, parse, clamp });  // tuple repeated
+//   const a = pipe.run(raw_a, .{ trim, parse, clamp });
+//   const b = pipe.run(raw_b, .{ trim, parse, clamp });  // tuple repeated
 //
 // Both produce identical machine code.

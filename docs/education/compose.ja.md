@@ -10,10 +10,10 @@ const pipe    = @import("zfp").pipe;
 const compose = @import("zfp").compose;
 
 // pipe：今すぐ適用して結果を得る
-const result = pipe.pipe(3, .{ double, addOne }); // 7
+const result = pipe.run(3, .{ double, addOne }); // 7
 
 // compose：再利用できる関数を作り、後で適用する
-const f = compose.compose(.{ double, addOne });
+const f = compose.from(.{ double, addOne });
 const result = f.call(3); // 7
 const again  = f.call(5); // 11  — 同じ変換を別の入力に
 ```
@@ -33,9 +33,9 @@ const c = normalize(clamp(parse(raw_c)));
 `pipe` を使っても同じ問題が残ります：
 
 ```zig
-const a = pipe.pipe(raw_a, .{ parse, clamp, normalize });
-const b = pipe.pipe(raw_b, .{ parse, clamp, normalize }); // 繰り返し
-const c = pipe.pipe(raw_c, .{ parse, clamp, normalize }); // 繰り返し
+const a = pipe.run(raw_a, .{ parse, clamp, normalize });
+const b = pipe.run(raw_b, .{ parse, clamp, normalize }); // 繰り返し
+const c = pipe.run(raw_c, .{ parse, clamp, normalize }); // 繰り返し
 ```
 
 ---
@@ -47,7 +47,7 @@ const c = pipe.pipe(raw_c, .{ parse, clamp, normalize }); // 繰り返し
 ```zig
 const compose = @import("zfp").compose;
 
-const process = compose.compose(.{ parse, clamp, normalize });
+const process = compose.from(.{ parse, clamp, normalize });
 
 const a = process.call(raw_a);
 const b = process.call(raw_b);
@@ -61,7 +61,7 @@ const c = process.call(raw_c);
 ## API
 
 ```zig
-compose.compose(fns: tuple) Callable
+compose.from(fns: tuple) Callable
 ```
 
 - `fns` — 無名構造体（タプルリテラル）。関数を左から右の順に並べる
@@ -93,7 +93,7 @@ const MyFn = compose.Compose(.{ double, addOne });
 
 ```zig
 // i32 → i32 → bool
-const check = compose.compose(.{ double, isPositive });
+const check = compose.from(.{ double, isPositive });
 const ok: bool = check.call(3); // true  (3 → 6 → true)
 const no: bool = check.call(0); // false (0 → 0 → false)
 ```
@@ -111,7 +111,7 @@ fn double(x: i32) i32  { return x * 2; }
 fn addOne(x: i32) i32  { return x + 1; }
 fn negate(x: i32) i32  { return -x; }
 
-const f = compose.compose(.{ double, addOne, negate });
+const f = compose.from(.{ double, addOne, negate });
 // f.call(3) → double(3)=6 → addOne(6)=7 → negate(7)=-7
 ```
 
@@ -123,7 +123,7 @@ const compose = @import("zfp").compose;
 fn length(s: []const u8) usize { return s.len; }
 fn doubled(n: usize) usize     { return n * 2; }
 
-const f = compose.compose(.{ length, doubled });
+const f = compose.from(.{ length, doubled });
 // f.call("hello") → 5 → 10   (型: usize)
 // f.call("hi")    → 2 → 4
 ```
@@ -141,7 +141,7 @@ fn toUpperFirst(s: []const u8) u8 {
     return if (s.len > 0) std.ascii.toUpper(s[0]) else 0;
 }
 
-const firstChar = compose.compose(.{ trim, toUpperFirst });
+const firstChar = compose.from(.{ trim, toUpperFirst });
 
 const inputs = [_][]const u8{ "  hello", " world ", "zig " };
 for (inputs) |input| {
