@@ -30,4 +30,5 @@ jobs:
       - name: Add Zig to PATH
         run: echo "$HOME/.local/zig" >> $GITHUB_PATH
 
+      - run: zig fmt --check src/
       - run: zig build test --summary all
