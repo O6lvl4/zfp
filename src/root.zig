@@ -4,3 +4,4 @@
 //!   option — Utilities for Zig's native ?T optional type
 
 pub const option = @import("option.zig");
+pub const result = @import("result.zig");
