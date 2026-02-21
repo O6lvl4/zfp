@@ -52,6 +52,7 @@ Every module must satisfy the core constraints:
 | `arrow` | — | ✅ Done | `first`, `second`, `split`, `fanout` |
 | `either` | tagged union | ✅ Done | `map`, `mapLeft`, `bimap`, `andThen`, `isLeft`, `isRight`, `unwrapOr`, `unwrapOrElse`, `fromOption`, `toOption` |
 | `slice` | `[]T` | ✅ Done | `fold`, `all`, `any`, `find`, `findIndex`, `count`, `forEach`, `sum`, `min`, `max` |
+| `monoid` | — | ✅ Done | `Sum`, `Product`, `Any`, `All`, `First`, `Last` (each with `empty`, `append`, `concat`) |
 
 ---
 
@@ -137,14 +138,17 @@ slice.find(items, predicate)    // returns ?T, first match
 slice.count(items, predicate)   // count matching elements
 ```
 
-### `monoid` — Semigroup / Monoid protocol
+### ~~`monoid` — Semigroup / Monoid protocol~~ ✅ Done
 
 ```zig
 const monoid = @import("zfp").monoid;
 
-monoid.append(a, b)   // combine two values (type-driven dispatch)
-monoid.concat(items)  // fold a slice using append
-monoid.empty(T)       // identity element for type T
+monoid.Sum.concat(&items)    // sum of all items
+monoid.Product.concat(&items)// product of all items
+monoid.Any.concat(&flags)    // true if any is true
+monoid.All.concat(&flags)    // true if all are true
+monoid.First.concat(&opts)   // first non-null
+monoid.Last.concat(&opts)    // last non-null
 ```
 
 ---

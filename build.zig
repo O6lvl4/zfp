@@ -105,6 +105,15 @@ pub fn build(b: *std.Build) void {
     const run_slice_tests = b.addRunArtifact(slice_tests);
     test_step.dependOn(&run_slice_tests.step);
 
+    const monoid_mod = b.createModule(.{
+        .root_source_file = b.path("src/monoid.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    const monoid_tests = b.addTest(.{ .root_module = monoid_mod });
+    const run_monoid_tests = b.addRunArtifact(monoid_tests);
+    test_step.dependOn(&run_monoid_tests.step);
+
     // Docs
     const install_docs = b.addInstallDirectory(.{
         .source_dir = lib.getEmittedDocs(),

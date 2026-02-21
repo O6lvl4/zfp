@@ -29,6 +29,7 @@ Pure comptime generics that compile away completely.
 | `arrow` | ✅ | Arrow combinators for pairs: `first`, `second`, `split`, `fanout` |
 | `either` | ✅ | Left/Right sum type: `map`, `mapLeft`, `bimap`, `andThen`, and more |
 | `slice` | ✅ | Foldable over slices: `fold`, `all`, `any`, `find`, `count`, and more |
+| `monoid` | ✅ | Semigroup / Monoid combinators: `Sum`, `Product`, `Any`, `All`, `First`, `Last` |
 
 ---
 
@@ -456,6 +457,71 @@ const total = slice.fold(&scores, @as(i32, 0), struct {
     }
 }.call);
 // → 229
+```
+
+---
+
+## monoid
+
+Six named Semigroup / Monoid combinators. Each is a comptime namespace with `empty`, `append`, and `concat` — folds a slice to a single value with no allocation.
+
+### API
+
+```zig
+const monoid = @import("zfp").monoid;
+
+// Sum — numeric addition (identity = 0)
+monoid.Sum.empty(T)         // → 0
+monoid.Sum.append(a, b)     // → a + b
+monoid.Sum.concat(items)    // → sum of all items
+
+// Product — numeric multiplication (identity = 1)
+monoid.Product.empty(T)     // → 1
+monoid.Product.append(a, b) // → a * b
+monoid.Product.concat(items)// → product of all items
+
+// Any — boolean OR (identity = false, short-circuits)
+monoid.Any.empty()          // → false
+monoid.Any.append(a, b)     // → a or b
+monoid.Any.concat(items)    // → true if any is true
+
+// All — boolean AND (identity = true, short-circuits)
+monoid.All.empty()          // → true
+monoid.All.append(a, b)     // → a and b
+monoid.All.concat(items)    // → true if all are true
+
+// First — first non-null optional (identity = null)
+monoid.First.empty(T)       // → null
+monoid.First.append(a, b)   // → a orelse b
+monoid.First.concat(items)  // → first non-null item
+
+// Last — last non-null optional (identity = null)
+monoid.Last.empty(T)        // → null
+monoid.Last.append(a, b)    // → b orelse a
+monoid.Last.concat(items)   // → last non-null item
+```
+
+### Example: intent over ceremony
+
+```zig
+const monoid = @import("zfp").monoid;
+
+// Before — spell out identity and operation each time
+var total: i32 = 1;
+for (items) |x| total *= x;
+
+var any_true = false;
+for (flags) |f| any_true = any_true or f;
+
+// After — intent captured in the name
+const total    = monoid.Product.concat(&items);
+const any_true = monoid.Any.concat(&flags);
+
+// Aggregate a batch of results — find the first error, the last error
+const results = [_]?[]const u8{ null, "timeout", null, "not found" };
+
+const first_err = monoid.First.concat(&results); // → "timeout"
+const last_err  = monoid.Last.concat(&results);  // → "not found"
 ```
 
 ---
