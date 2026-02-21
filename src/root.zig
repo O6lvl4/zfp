@@ -10,3 +10,4 @@ pub const compose = @import("compose.zig");
 pub const zf = @import("zf.zig");
 pub const tap = @import("tap.zig");
 pub const arrow = @import("arrow.zig");
+pub const either = @import("either.zig");

@@ -87,6 +87,15 @@ pub fn build(b: *std.Build) void {
     const run_arrow_tests = b.addRunArtifact(arrow_tests);
     test_step.dependOn(&run_arrow_tests.step);
 
+    const either_mod = b.createModule(.{
+        .root_source_file = b.path("src/either.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    const either_tests = b.addTest(.{ .root_module = either_mod });
+    const run_either_tests = b.addRunArtifact(either_tests);
+    test_step.dependOn(&run_either_tests.step);
+
     // Docs
     const install_docs = b.addInstallDirectory(.{
         .source_dir = lib.getEmittedDocs(),
