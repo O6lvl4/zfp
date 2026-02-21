@@ -49,6 +49,7 @@ Every module must satisfy the core constraints:
 | `compose` | — | ✅ Done | `from`, `run` |
 | `zf` | — | ✅ Done | `id`, `flip`, `const_`, `on` |
 | `tap` | — | ✅ Done | `run`, `typed` |
+| `arrow` | — | ✅ Done | `first`, `second`, `split`, `fanout` |
 
 ---
 
@@ -68,7 +69,7 @@ pipe.run(value, .{
 });
 ```
 
-### `arrow` — Arrow typeclass
+### ~~`arrow` — Arrow typeclass~~ ✅ Done
 
 Extends `compose` with parallel and fanout combinators.
 

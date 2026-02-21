@@ -26,6 +26,7 @@ Pure comptime generics that compile away completely.
 | `compose` | ✅ | Compose functions into a reusable callable |
 | `zf` | ✅ | Function combinators: `id`, `flip`, `const_`, `on` |
 | `tap` | ✅ | Side-effect injection in pipelines: `run`, `typed` |
+| `arrow` | ✅ | Arrow combinators for pairs: `first`, `second`, `split`, `fanout` |
 
 ---
 
@@ -235,6 +236,88 @@ const byLength = struct {
 
 byLength("foo", "hello") // → .lt
 byLength("hi",  "ok")    // → .eq
+```
+
+---
+
+## tap
+
+Inject side effects (logging, tracing, assertions) into a pipeline without interrupting the value flow.
+
+### API
+
+```zig
+const tap = @import("zfp").tap;
+
+// Call f(value) for its side effect, return value unchanged
+tap.run(value: T, f: fn(T) void) T
+
+// Return a concrete fn(T) T step for use inside pipe.run tuples
+tap.typed(T: type, f: fn(T) void) fn(T) T
+```
+
+### Example: non-invasive logging
+
+```zig
+const tap  = @import("zfp").tap;
+const pipe = @import("zfp").pipe;
+
+// Before — split the pipeline just to log
+const parsed    = parse(raw);
+std.debug.print("parsed: {}\n", .{parsed});
+const validated = validate(parsed);
+
+// After — log without breaking the pipeline
+const result = pipe.run(raw, .{
+    parse,
+    tap.typed(ParsedData, logParsed),
+    validate,
+    transform,
+});
+```
+
+---
+
+## arrow
+
+Arrow combinators for working with pairs (two-element tuples). Transform each side of a pair independently, or split a single value into two paths.
+
+### API
+
+```zig
+const arrow = @import("zfp").arrow;
+
+// Apply f to the first element; second unchanged
+arrow.first(f, .{a, b}) // → .{f(a), b}
+
+// Apply g to the second element; first unchanged
+arrow.second(g, .{a, b}) // → .{a, g(b)}
+
+// Apply f to first, g to second  (f *** g)
+arrow.split(f, g, .{a, b}) // → .{f(a), g(b)}
+
+// Apply both f and g to the same value  (f &&& g)
+arrow.fanout(f, g, a) // → .{f(a), g(a)}
+```
+
+### Example: parallel pair transformation
+
+```zig
+const arrow = @import("zfp").arrow;
+
+// Before — unpack and repack manually
+const result: struct { i32, usize } = .{
+    @abs(raw_pair[0]),
+    raw_pair[1].len,
+};
+
+// After — intent is clear
+const result = arrow.split(absInt, strLen, .{ @as(i32, -3), "hello" });
+// → .{ 3, 5 }
+
+// Compute two values from a single input
+const stats = arrow.fanout(sumSlice, countSlice, items);
+// stats[0] = sum, stats[1] = count
 ```
 
 ---
