@@ -23,6 +23,7 @@ Pure comptime generics that compile away completely.
 | `option` | ✅ | Utilities for Zig's native `?T` optional type |
 | `result` | ✅ | Utilities for Zig's native `anyerror!T` error union type |
 | `pipe` | ✅ | Left-to-right function pipeline with full type inference |
+| `compose` | ✅ | Compose functions into a reusable callable |
 
 ---
 
@@ -165,6 +166,37 @@ const result = pipe.pipe(raw, .{ parse, clamp, normalize });
 
 ---
 
+## compose
+
+Compose a sequence of functions into a **reusable callable**. Unlike `pipe` which applies to a value immediately, `compose` returns a zero-size struct you can store and call many times.
+
+### API
+
+```zig
+const compose = @import("zfp").compose;
+
+// Compose functions left to right, return a reusable callable
+const f = compose.compose(.{ g: A→B, h: B→C });
+f.call(x: A) // → C
+```
+
+### Example: reusable transformation
+
+```zig
+const compose = @import("zfp").compose;
+
+// Before — tuple repeated at every call site
+const a = normalize(clamp(parse(raw_a)));
+const b = normalize(clamp(parse(raw_b)));
+
+// After — define once, apply many times
+const process = compose.compose(.{ parse, clamp, normalize });
+const a = process.call(raw_a);
+const b = process.call(raw_b);
+```
+
+---
+
 ## Why is it zero-cost?
 
 In Zig, `inline fn` with `anytype` parameters is resolved entirely at compile time.
@@ -201,11 +233,11 @@ exe.root_module.addImport("zfp", zfp.module("zfp"));
 ## Development
 
 ```sh
-# Run all tests
-zig build test --summary all
-
-# Generate API documentation
-zig build docs
+zig build --help                 # List all available commands
+zig build test --summary all     # Run all tests
+zig build docs                   # Generate API docs → zig-out/docs/
+zig build fmt                    # Format source files
+zig build clean                  # Remove build artifacts (zig-out/, .zig-cache/)
 ```
 
 Requires Zig `0.15.0` or later.
