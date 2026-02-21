@@ -1,13 +1,41 @@
 # zfp Roadmap
 
-This document tracks the current state and planned direction of `zfp`.
+The goal of `zfp` is a **complete, zero-cost functional programming library for Zig**, drawing from Haskell's typeclass hierarchy as the design reference.
 
 Every module must satisfy the core constraints:
 
-- Works directly on Zig's native types — no wrapper structs
-- Zero allocations, zero runtime overhead
+- Works directly on Zig's native types — no wrapper structs where possible
+- Zero allocations, zero runtime overhead (allocation-requiring modules are clearly marked)
 - All public functions are `pub inline fn` with `anytype`
 - Identical machine code to hand-written Zig
+
+> **Note on HKT**: Zig has no higher-kinded types. There is no single `Functor` typeclass that spans all modules. Instead, each module implements the same interface (`map`, `andThen`, …) independently and consistently. This is the Zig-idiomatic equivalent.
+
+---
+
+## Haskell → zfp Mapping
+
+| Haskell concept | zfp module | Notes |
+|----------------|-----------|-------|
+| `Maybe` | `option` ✅ | Native `?T` |
+| `Either e a` | `either` | Native tagged union |
+| `Functor` (`fmap`) | `map` in each module | Per-type, no HKT |
+| `Monad` (`>>=`) | `andThen` in each module | Per-type |
+| `Applicative` (`<*>`) | `ap` in each module | Applying wrapped fn to wrapped value |
+| `Alternative` (`<\|>`) | `orElse` in each module | First success wins |
+| `Category` (`id`, `>>>`) | `compose` ✅ | `from`, `run` |
+| `Arrow` (`arr`, `>>>`, `***`) | `arrow` | Builds on `compose` |
+| `Foldable` | `slice` | `fold`, `all`, `any`, `find` over slices |
+| `Traversable` | `traverse` | Needs allocation — clearly marked |
+| `Semigroup` / `Monoid` | `monoid` | `append`, `empty` protocol |
+| `State` monad | `state` | Comptime pure, zero-cost |
+| `Reader` monad | `reader` | Dependency injection pattern |
+| `Writer` monad | `writer` | Accumulation / logging |
+| `Cont` monad | `cont` | Continuation-passing style |
+| Function combinators | `fn` | `id`, `flip`, `const_`, `on` |
+| Debug / tracing | `tap` | Side-effects in pipelines |
+| `List` monad | `list` | Requires allocation — clearly marked |
+| `IO` monad | — | Not applicable; Zig is imperative |
 
 ---
 
@@ -22,73 +50,190 @@ Every module must satisfy the core constraints:
 
 ---
 
-## Planned
+## Phase 2 — Arrow & Function primitives
+
+### `fn` — Function combinators (Category / Arrow basis)
+
+```zig
+const f = @import("zfp").fn;
+
+f.id(x)              // identity: x → x
+f.flip(func, b, a)   // swap arguments: flip(f, b, a) = f(a, b)
+f.const_(x)(y)       // constant: always returns x regardless of y
+f.on(f, g, a, b)     // on(f, g) = (a, b) → f(g(a), g(b))
+```
 
 ### `tap` — Side-effect injection in pipelines
-
-Insert a side-effecting function (logging, debugging, tracing) into a `pipe.run` chain without altering the value flowing through.
 
 ```zig
 const tap = @import("zfp").tap;
 
 pipe.run(value, .{
     parse,
-    tap.run(std.debug.print("after parse: {}\n", .{})),  // side effect, value passes through
+    tap.run(logFn),  // calls logFn(value) for side effect, passes value through
     validate,
 });
 ```
 
-**Why**: Debugging pipelines currently requires breaking the chain. `tap` solves this without any runtime cost — the injected call is inlined and the value is forwarded unchanged.
+### `arrow` — Arrow typeclass
 
----
-
-### `fn` — Function combinators
-
-Primitive building blocks for composing and transforming functions.
+Extends `compose` with parallel and fanout combinators.
 
 ```zig
-const f = @import("zfp").fn;
+const arrow = @import("zfp").arrow;
 
-f.id(x)            // identity: returns x unchanged
-f.flip(func, b, a) // swap first two arguments
-f.const_(x)        // returns a function that always returns x
+arrow.split(f, g, .{ a, b })   // (f *** g): apply f to a, g to b → .{ f(a), g(b) }
+arrow.fanout(f, g, a)          // (f &&& g): apply both f and g to a → .{ f(a), g(a) }
+arrow.first(f, .{ a, b })      // apply f only to first element
+arrow.second(g, .{ a, b })     // apply g only to second element
 ```
-
-**Why**: Useful as glue in `pipe.run` and `compose.from` chains where a small adapter is needed without defining a named function.
 
 ---
 
-### `slice` — Functional operations over slices
+## Phase 3 — Typeclass analogs
 
-Zero-cost `fold` and `all`/`any` over slices. `filter` and runtime `map` are excluded as they require allocation.
+### `either` — Explicit Left / Right (Bifunctor)
+
+Zig's `anyerror!T` is close to `Either` but the error side is restricted to error sets. `either` provides a proper `Left(A) | Right(B)` tagged union with full `bimap`.
+
+```zig
+const either = @import("zfp").either;
+
+// either.Either(L, R) — a tagged union
+either.left(val)                   // wrap as Left
+either.right(val)                  // wrap as Right
+either.map(e, f)                   // apply f to Right, pass Left unchanged
+either.mapLeft(e, f)               // apply f to Left, pass Right unchanged
+either.bimap(e, leftFn, rightFn)   // apply to whichever side is active
+either.andThen(e, f)               // monadic bind on Right
+either.fromOption(opt, leftVal)    // ?T → Either(L, R)
+either.toOption(e)                 // Either → ?T, discarding Left
+```
+
+### `ap` — Applicative (`<*>`)
+
+Applying a wrapped function to a wrapped value. Added to `option` and `result`.
+
+```zig
+// option.ap(?fn(T)U, ?T) → ?U
+option.ap(some_fn, some_val)
+
+// result.ap(E!fn(T)U, E!T) → E!U
+result.ap(ok_fn, ok_val)
+```
+
+### `orElse` — Alternative (`<|>`)
+
+First success wins. Added to `option` and `result`.
+
+```zig
+option.orElse(null, @as(?i32, 42))    // → 42
+result.orElse(error.Bad, fallback)    // → fallback if error
+```
+
+### `slice` — Foldable over slices
 
 ```zig
 const slice = @import("zfp").slice;
 
-slice.fold(items, 0, add)        // left fold, no allocation
-slice.all(items, isPositive)     // true if predicate holds for all
-slice.any(items, isPositive)     // true if predicate holds for any
-slice.find(items, isPositive)    // returns ?T, first matching element
+slice.fold(items, initial, f)   // left fold — no allocation
+slice.all(items, predicate)     // true if predicate holds for all
+slice.any(items, predicate)     // true if any
+slice.find(items, predicate)    // returns ?T, first match
+slice.count(items, predicate)   // count matching elements
 ```
 
-**Why**: The most common use case for functional style in Zig is processing slices. `fold` is always zero-cost; `all`/`any`/`find` are short-circuiting loops — no allocation needed.
+### `monoid` — Semigroup / Monoid protocol
+
+```zig
+const monoid = @import("zfp").monoid;
+
+monoid.append(a, b)   // combine two values (type-driven dispatch)
+monoid.concat(items)  // fold a slice using append
+monoid.empty(T)       // identity element for type T
+```
 
 ---
 
-## Ideas (not yet planned)
+## Phase 4 — Monad transformers
 
-These are worth exploring but need more thought before committing to an API.
+### `state` — State monad
 
-| Idea | Note |
-|------|------|
-| `iter` | Functional adapters for Zig's `while (iter.next()) \|v\|` pattern. Needs a clean API that works without closures. |
-| `comptime slice` | Fully comptime `map`/`filter` over arrays — possible with Zig's comptime, but API ergonomics are unclear. |
-| `memo` | Memoization for pure functions. Requires allocation; may conflict with the zero-alloc constraint. |
+A pure, zero-cost state threading pattern. The state is passed explicitly — no globals, no mutation.
+
+```zig
+const state = @import("zfp").state;
+
+// State(S, A) = fn(S) struct { value: A, next: S }
+const counter = state.get();
+const incremented = state.modify(counter, addOne);
+const result = state.run(incremented, initialState);
+```
+
+### `reader` — Reader monad (dependency injection)
+
+```zig
+const reader = @import("zfp").reader;
+
+// Reader(R, A) = fn(R) A
+const getName = reader.asks(fn(env: Env) []const u8 { return env.name; });
+const program = reader.map(getName, toUpperCase);
+const result  = reader.run(program, myEnv);
+```
+
+### `writer` — Writer monad (accumulation)
+
+```zig
+const writer = @import("zfp").writer;
+
+// Writer(W, A) = struct { value: A, log: W }
+const w = writer.tell("step 1 complete");
+const mapped = writer.map(w, double);
+const .{ value, log } = writer.run(mapped);
+```
+
+### `cont` — Continuation monad (CPS)
+
+```zig
+const cont = @import("zfp").cont;
+
+// Cont(R, A) = fn(fn(A) R) R
+const c = cont.pure(42);
+const mapped = cont.map(c, double);
+const result = cont.run(mapped, identity);
+```
+
+---
+
+## Phase 5 — Allocation-aware (clearly marked)
+
+These modules require an allocator and are explicitly not zero-cost. They are still zero-overhead in the sense that they do exactly what a hand-written version would do.
+
+### `traverse` — Traversable
+
+Convert a sequence of wrapped values into a wrapped sequence.
+
+```zig
+// [?T] → ?[]T  (returns null if any element is null)
+traverse.option(allocator, items, f)
+
+// [E!T] → E![]T  (returns first error if any)
+traverse.result(allocator, items, f)
+```
+
+### `list` — List monad (non-determinism)
+
+```zig
+// flatMap over slices — like Haskell's list monad
+list.andThen(allocator, items, f)   // f returns a slice; results are concatenated
+list.pure(allocator, x)             // wrap single value in a list
+```
 
 ---
 
 ## Non-goals
 
-- **No allocator-required APIs in core modules.** Anything needing allocation belongs in a separate, clearly-named module.
-- **No wrapper types.** `option` stays as `?T`, `result` stays as `anyerror!T`.
-- **No async/concurrency utilities.** Out of scope.
+- **No wrapper types for `?T` and `anyerror!T`.** These stay as native Zig types.
+- **No lazy evaluation by default.** Zig is strict; laziness requires explicit opt-in.
+- **No `IO` monad.** Zig handles effects imperatively.
+- **No runtime typeclass dispatch.** All generics are resolved at comptime.
