@@ -1,0 +1,53 @@
+name: Deploy Docs
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Build and deploy
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Zig
+        id: cache-zig
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/zig
+          key: zig-0.15.2-linux-x86_64
+
+      - name: Download Zig
+        if: steps.cache-zig.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/.local/zig
+          curl -fsSL https://ziglang.org/download/0.15.2/zig-x86_64-linux-0.15.2.tar.xz \
+            | tar -xJ --strip-components=1 -C ~/.local/zig
+
+      - name: Add Zig to PATH
+        run: echo "$HOME/.local/zig" >> $GITHUB_PATH
+
+      - name: Generate docs
+        run: zig build docs
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: zig-out/docs
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
