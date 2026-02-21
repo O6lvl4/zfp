@@ -1,12 +1,12 @@
 # func — 関数コンビネータ
 
 ```zig
-const func = @import("zfp").func;
+const func = @import("zfp").zf;
 ```
 
 ## これは何？
 
-`func` は、関数を値として扱うための基本的な部品を提供するモジュールです。
+`zf` は、関数を値として扱うための基本的な部品を提供するモジュールです。
 Haskell の Prelude にある `id`, `flip`, `const`, `on` の Zig 版です。
 
 `pipe.run` や `compose.from` のチェーンの中で、小さな変換のたびに名前付き関数を定義しなくて済むようにする「のり」として機能します。
@@ -20,18 +20,18 @@ Haskell の Prelude にある `id`, `flip`, `const`, `on` の Zig 版です。
 引数をそのまま返します。一見無意味ですが、パイプラインの「何もしない」スロットやデフォルトの変換として不可欠です。
 
 ```zig
-const func = @import("zfp").func;
+const func = @import("zfp").zf;
 
-func.id(42)      // → 42
-func.id("hello") // → "hello"
-func.id(true)    // → true
+zf.id(42)      // → 42
+zf.id("hello") // → "hello"
+zf.id(true)    // → true
 ```
 
 **パイプラインでの使用例:**
 
 ```zig
 // 条件によって変換を適用するか、そのまま通す
-const transform = if (should_double) double else func.id;
+const transform = if (should_double) double else zf.id;
 const result = pipe.run(value, .{transform});
 ```
 
@@ -44,12 +44,12 @@ const result = pipe.run(value, .{transform});
 二項関数の最初の2引数を入れ替えて呼び出します。
 
 ```zig
-const func = @import("zfp").func;
+const func = @import("zfp").zf;
 
 const sub = fn(a: i32, b: i32) i32 { return a - b; };
 
 sub(10, 3)            // → 7   (10 - 3)
-func.flip(sub, 10, 3) // → -7  (3 - 10)
+zf.flip(sub, 10, 3) // → -7  (3 - 10)
 ```
 
 **なぜ重要か:**
@@ -60,7 +60,7 @@ func.flip(sub, 10, 3) // → -7  (3 - 10)
 ```zig
 // std.mem.startsWith(haystack, prefix) の順序だが
 // (prefix, haystack) の形で渡したい場合
-func.flip(std.mem.startsWith, prefix, haystack)
+zf.flip(std.mem.startsWith, prefix, haystack)
 ```
 
 ---
@@ -73,10 +73,10 @@ func.flip(std.mem.startsWith, prefix, haystack)
 `const` は Zig の予約語なので `const_` という名前にしています。
 
 ```zig
-const func = @import("zfp").func;
+const func = @import("zfp").zf;
 
-func.const_(42, "ignored") // → 42
-func.const_(true, 9999)    // → true
+zf.const_(42, "ignored") // → 42
+zf.const_(true, 9999)    // → true
 ```
 
 **パイプラインでの使用例:**
@@ -84,7 +84,7 @@ func.const_(true, 9999)    // → true
 ```zig
 // どんな値でも固定の番兵値に置き換える
 const alwaysZero = struct {
-    fn call(x: i32) i32 { return func.const_(@as(i32, 0), x); }
+    fn call(x: i32) i32 { return zf.const_(@as(i32, 0), x); }
 }.call;
 
 pipe.run(value, .{ parse, validate, alwaysZero }); // 常に 0 で終わる
@@ -103,10 +103,10 @@ on(f, g, a, b)  ≡  f(g(a), g(b))
 ```
 
 ```zig
-const func = @import("zfp").func;
+const func = @import("zfp").zf;
 const std   = @import("std");
 
-const byLength = func.on(std.math.order, sliceLen);
+const byLength = zf.on(std.math.order, sliceLen);
 
 byLength("foo", "hello") // → .lt  (3 < 5)
 byLength("hi",  "ok")    // → .eq  (2 == 2)
@@ -120,14 +120,14 @@ byLength("hi",  "ok")    // → .eq  (2 == 2)
 // 文字列を長さでソートする
 std.sort.block([]const u8, items, {}, struct {
     fn lessThan(_: void, a: []const u8, b: []const u8) bool {
-        return func.on(std.math.order, strLen, a, b) == .lt;
+        return zf.on(std.math.order, strLen, a, b) == .lt;
     }
 }.lessThan);
 ```
 
 ---
 
-## なぜ `fn` ではなく `func` なのか？
+## なぜ `fn` ではなく `zf` なのか？
 
 `fn` は Zig の予約語です。モジュール名に使うと、呼び出し側は毎回 `@"fn"` と書く必要があり、見苦しくなります。
 
@@ -136,7 +136,7 @@ std.sort.block([]const u8, items, {}, struct {
 const f = @import("zfp").@"fn";
 
 // func にした場合 — すっきり
-const func = @import("zfp").func;
+const func = @import("zfp").zf;
 ```
 
 ---
@@ -158,14 +158,14 @@ const func = @import("zfp").func;
 ## 合成の例
 
 ```zig
-const func    = @import("zfp").func;
+const func    = @import("zfp").zf;
 const pipe    = @import("zfp").pipe;
 const compose = @import("zfp").compose;
 
 // スコアフィールドで降順に比較する
 const byScoreDesc = struct {
     fn call(a: Record, b: Record) bool {
-        return func.on(std.math.order, getScore, a, b) == .gt;
+        return zf.on(std.math.order, getScore, a, b) == .gt;
     }
 }.call;
 
@@ -179,10 +179,10 @@ const checkOrder = compose.from(.{ normalise, byScoreDesc });
 
 | Haskell | zfp | 意味 |
 |---------|-----|------|
-| `id x` | `func.id(x)` | そのまま通す |
-| `flip f a b` | `func.flip(f, a, b)` | `f(b, a)` を呼ぶ |
-| `const x _` | `func.const_(x, _)` | 常に `x` を返す |
-| `f \`on\` g` | `func.on(f, g, a, b)` | `f(g(a), g(b))` |
+| `id x` | `zf.id(x)` | そのまま通す |
+| `flip f a b` | `zf.flip(f, a, b)` | `f(b, a)` を呼ぶ |
+| `const x _` | `zf.const_(x, _)` | 常に `x` を返す |
+| `f \`on\` g` | `zf.on(f, g, a, b)` | `f(g(a), g(b))` |
 
 ---
 

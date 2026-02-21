@@ -32,7 +32,7 @@ Every module must satisfy the core constraints:
 | `Reader` monad | `reader` | Dependency injection pattern |
 | `Writer` monad | `writer` | Accumulation / logging |
 | `Cont` monad | `cont` | Continuation-passing style |
-| Function combinators | `func` ✅ | `id`, `flip`, `const_`, `on` |
+| Function combinators | `zf` ✅ | `id`, `flip`, `const_`, `on` |
 | Debug / tracing | `tap` | Side-effects in pipelines |
 | `List` monad | `list` | Requires allocation — clearly marked |
 | `IO` monad | — | Not applicable; Zig is imperative |
@@ -47,22 +47,13 @@ Every module must satisfy the core constraints:
 | `result` | `anyerror!T` | ✅ Done | `map`, `andThen`, `unwrapOr`, `unwrapOrElse`, `toOption`, `isOk`, `isErr` |
 | `pipe` | — | ✅ Done | `run` |
 | `compose` | — | ✅ Done | `from`, `run` |
-| `func` | — | ✅ Done | `id`, `flip`, `const_`, `on` |
+| `zf` | — | ✅ Done | `id`, `flip`, `const_`, `on` |
 
 ---
 
 ## Phase 2 — Arrow & Function primitives
 
-### ~~`func` — Function combinators~~ ✅ Done
-
-```zig
-const f = @import("zfp").fn;
-
-f.id(x)              // identity: x → x
-f.flip(func, b, a)   // swap arguments: flip(f, b, a) = f(a, b)
-f.const_(x)(y)       // constant: always returns x regardless of y
-f.on(f, g, a, b)     // on(f, g) = (a, b) → f(g(a), g(b))
-```
+### ~~`zf` — Function combinators~~ ✅ Done
 
 ### `tap` — Side-effect injection in pipelines
 
