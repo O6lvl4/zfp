@@ -54,11 +54,20 @@ pub fn build(b: *std.Build) void {
     const compose_tests = b.addTest(.{ .root_module = compose_mod });
     const run_compose_tests = b.addRunArtifact(compose_tests);
 
+    const func_mod = b.createModule(.{
+        .root_source_file = b.path("src/func.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    const func_tests = b.addTest(.{ .root_module = func_mod });
+    const run_func_tests = b.addRunArtifact(func_tests);
+
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_option_tests.step);
     test_step.dependOn(&run_result_tests.step);
     test_step.dependOn(&run_pipe_tests.step);
     test_step.dependOn(&run_compose_tests.step);
+    test_step.dependOn(&run_func_tests.step);
 
     // Docs
     const install_docs = b.addInstallDirectory(.{

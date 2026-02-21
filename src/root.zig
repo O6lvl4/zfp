@@ -7,3 +7,4 @@ pub const option = @import("option.zig");
 pub const result = @import("result.zig");
 pub const pipe = @import("pipe.zig");
 pub const compose = @import("compose.zig");
+pub const func = @import("func.zig");

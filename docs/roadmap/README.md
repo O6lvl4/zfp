@@ -32,7 +32,7 @@ Every module must satisfy the core constraints:
 | `Reader` monad | `reader` | Dependency injection pattern |
 | `Writer` monad | `writer` | Accumulation / logging |
 | `Cont` monad | `cont` | Continuation-passing style |
-| Function combinators | `fn` | `id`, `flip`, `const_`, `on` |
+| Function combinators | `func` ✅ | `id`, `flip`, `const_`, `on` |
 | Debug / tracing | `tap` | Side-effects in pipelines |
 | `List` monad | `list` | Requires allocation — clearly marked |
 | `IO` monad | — | Not applicable; Zig is imperative |
@@ -47,12 +47,13 @@ Every module must satisfy the core constraints:
 | `result` | `anyerror!T` | ✅ Done | `map`, `andThen`, `unwrapOr`, `unwrapOrElse`, `toOption`, `isOk`, `isErr` |
 | `pipe` | — | ✅ Done | `run` |
 | `compose` | — | ✅ Done | `from`, `run` |
+| `func` | — | ✅ Done | `id`, `flip`, `const_`, `on` |
 
 ---
 
 ## Phase 2 — Arrow & Function primitives
 
-### `fn` — Function combinators (Category / Arrow basis)
+### ~~`func` — Function combinators~~ ✅ Done
 
 ```zig
 const f = @import("zfp").fn;
