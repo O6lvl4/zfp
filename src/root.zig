@@ -12,3 +12,4 @@ pub const tap = @import("tap.zig");
 pub const arrow = @import("arrow.zig");
 pub const either = @import("either.zig");
 pub const slice = @import("slice.zig");
+pub const monoid = @import("monoid.zig");
