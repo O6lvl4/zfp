@@ -50,10 +50,12 @@ fn process(raw: ?[]const u8) ?i32 {
 同じロジックをパイプラインで書くと:
 
 ```zig
+const option = @import("zfp").option;
+
 fn process(raw: ?[]const u8) ?i32 {
-    return opt.map(
-        opt.andThen(
-            opt.andThen(raw, parsePositiveInt),
+    return option.map(
+        option.andThen(
+            option.andThen(raw, parsePositiveInt),
             lookup,
         ),
         double,
@@ -85,9 +87,13 @@ map(None,    f)  = None
 `map` は `A → B` という関数を「optional の世界」に持ち上げます。null の伝播はコンテナが肩代わりするので、あなたが `if` を書く必要はありません。
 
 ```zig
+const option = @import("zfp").option;
+
+fn double(x: i32) i32 { return x * 2; }
+
 // null でなければ 2 倍、null はそのまま通す
-const result = opt.map(@as(?i32, 21), double); // ?i32(42)
-const empty  = opt.map(@as(?i32, null), double); // null
+const result = option.map(@as(?i32, 21), double); // ?i32(42)
+const empty  = option.map(@as(?i32, null), double); // null
 ```
 
 **ポイント**: `map` は「値があるかどうか」を変えません。あくまで中身を変換するだけです。
@@ -114,6 +120,9 @@ andThen : F(A) → (A → F(B)) → F(B)
 `map` で「失敗しうる関数」を適用すると `??B`（二重の optional）になります。`andThen` はそれを自動でフラットに展開します。
 
 ```zig
+const std = @import("std");
+const option = @import("zfp").option;
+
 const safeSqrt = struct {
     fn call(x: f64) ?f64 {
         if (x < 0) return null;
@@ -122,7 +131,7 @@ const safeSqrt = struct {
 }.call;
 
 // 失敗しうる操作を 2 回連鎖させる
-const r = opt.andThen(opt.andThen(@as(?f64, 16.0), safeSqrt), safeSqrt);
+const r = option.andThen(option.andThen(@as(?f64, 16.0), safeSqrt), safeSqrt);
 // 16.0 → sqrt → 4.0 → sqrt → 2.0
 ```
 
@@ -139,7 +148,9 @@ unwrapOr : F(A) → A → A
 ```
 
 ```zig
-const port = opt.unwrapOr(config.port, 8080);
+const option = @import("zfp").option;
+
+const port = option.unwrapOr(config.port, 8080);
 ```
 
 Zig では `config.port orelse 8080` と書けます。`unwrapOr` はパイプラインとの一貫性のために提供しています。
@@ -155,8 +166,12 @@ filter : F(A) → (A → Bool) → F(A)
 ```
 
 ```zig
-const positive = opt.filter(@as(?i32, -5), isPositive); // null
-const kept     = opt.filter(@as(?i32,  3), isPositive); // ?i32(3)
+const option = @import("zfp").option;
+
+fn isPositive(x: i32) bool { return x > 0; }
+
+const positive = option.filter(@as(?i32, -5), isPositive); // null
+const kept     = option.filter(@as(?i32,  3), isPositive); // ?i32(3)
 ```
 
 「値はあるが、条件を満たさない」という状態を「値がない」に変換します。値そのものは変えません。
@@ -195,7 +210,9 @@ const kept     = opt.filter(@as(?i32,  3), isPositive); // ?i32(3)
 コンパイラから見ると:
 
 ```zig
-opt.map(@as(?i32, x), double)
+const option = @import("zfp").option;
+
+option.map(@as(?i32, x), double)
 ```
 
 は次と完全に同一です:
@@ -213,13 +230,15 @@ if (x) |v| v * 2 else null
 本当の力は、これらを組み合わせたときに発揮されます:
 
 ```zig
+const option = @import("zfp").option;
+
 // 生の文字列を、検証・変換された値に変換する
 // 各ステップが独立して null を返せる
 fn processInput(raw: ?[]const u8) ?f64 {
-    return opt.map(
-        opt.andThen(
-            opt.andThen(
-                opt.filter(raw, isNonEmpty),
+    return option.map(
+        option.andThen(
+            option.andThen(
+                option.filter(raw, isNonEmpty),
                 parseFloat,
             ),
             validateRange,

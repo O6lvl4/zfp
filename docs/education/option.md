@@ -50,10 +50,12 @@ Each step adds a level of indentation. The actual logic gets buried. This is som
 The same logic expressed as a pipeline:
 
 ```zig
+const option = @import("zfp").option;
+
 fn process(raw: ?[]const u8) ?i32 {
-    return opt.map(
-        opt.andThen(
-            opt.andThen(raw, parsePositiveInt),
+    return option.map(
+        option.andThen(
+            option.andThen(raw, parsePositiveInt),
             lookup,
         ),
         double,
@@ -85,9 +87,13 @@ map(None,    f)  = None
 `map` lifts a function `A → B` into the world of optional values. The "null propagation" is handled by the container — you never write `if` yourself.
 
 ```zig
+const option = @import("zfp").option;
+
+fn double(x: i32) i32 { return x * 2; }
+
 // double every non-null integer, propagate null unchanged
-const result = opt.map(@as(?i32, 21), double); // ?i32(42)
-const empty  = opt.map(@as(?i32, null), double); // null
+const result = option.map(@as(?i32, 21), double); // ?i32(42)
+const empty  = option.map(@as(?i32, null), double); // null
 ```
 
 **Key idea**: `map` never changes whether a value is present. It only transforms the value inside.
@@ -114,6 +120,9 @@ The difference from `map`:
 Without `andThen`, applying a fallible function via `map` would give `??B` — a doubly-wrapped optional. `andThen` flattens it automatically.
 
 ```zig
+const std = @import("std");
+const option = @import("zfp").option;
+
 const safeSqrt = struct {
     fn call(x: f64) ?f64 {
         if (x < 0) return null;
@@ -122,7 +131,7 @@ const safeSqrt = struct {
 }.call;
 
 // chain two fallible operations
-const r = opt.andThen(opt.andThen(@as(?f64, 16.0), safeSqrt), safeSqrt);
+const r = option.andThen(option.andThen(@as(?f64, 16.0), safeSqrt), safeSqrt);
 // 16.0 → sqrt → 4.0 → sqrt → 2.0
 ```
 
@@ -139,7 +148,9 @@ unwrapOr : F(A) → A → A
 ```
 
 ```zig
-const port = opt.unwrapOr(config.port, 8080);
+const option = @import("zfp").option;
+
+const port = option.unwrapOr(config.port, 8080);
 ```
 
 In Zig this is literally `config.port orelse 8080`. `unwrapOr` is provided for API consistency in pipelines.
@@ -155,8 +166,12 @@ filter : F(A) → (A → Bool) → F(A)
 ```
 
 ```zig
-const positive = opt.filter(@as(?i32, -5), isPositive); // null
-const kept     = opt.filter(@as(?i32,  3), isPositive); // ?i32(3)
+const option = @import("zfp").option;
+
+fn isPositive(x: i32) bool { return x > 0; }
+
+const positive = option.filter(@as(?i32, -5), isPositive); // null
+const kept     = option.filter(@as(?i32,  3), isPositive); // ?i32(3)
 ```
 
 `filter` is useful when a value is present but does not meet a condition — it converts presence to absence without changing the value itself.
@@ -193,7 +208,9 @@ This means:
 The compiler sees:
 
 ```zig
-opt.map(@as(?i32, x), double)
+const option = @import("zfp").option;
+
+option.map(@as(?i32, x), double)
 ```
 
 and generates exactly the same code as:
@@ -211,13 +228,15 @@ You can verify this with `zig build -Doptimize=ReleaseFast` and inspect the outp
 The real power comes from combining these operations:
 
 ```zig
+const option = @import("zfp").option;
+
 // Parse a raw string into a validated, transformed value
 // Each step can independently return null on failure
 fn processInput(raw: ?[]const u8) ?f64 {
-    return opt.map(
-        opt.andThen(
-            opt.andThen(
-                opt.filter(raw, isNonEmpty),
+    return option.map(
+        option.andThen(
+            option.andThen(
+                option.filter(raw, isNonEmpty),
                 parseFloat,
             ),
             validateRange,
