@@ -28,8 +28,19 @@ pub fn build(b: *std.Build) void {
     });
     const run_option_tests = b.addRunArtifact(option_tests);
 
+    const result_mod = b.createModule(.{
+        .root_source_file = b.path("src/result.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    const result_tests = b.addTest(.{
+        .root_module = result_mod,
+    });
+    const run_result_tests = b.addRunArtifact(result_tests);
+
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_option_tests.step);
+    test_step.dependOn(&run_result_tests.step);
 
     // Docs
     const install_docs = b.addInstallDirectory(.{
