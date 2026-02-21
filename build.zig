@@ -96,6 +96,15 @@ pub fn build(b: *std.Build) void {
     const run_either_tests = b.addRunArtifact(either_tests);
     test_step.dependOn(&run_either_tests.step);
 
+    const slice_mod = b.createModule(.{
+        .root_source_file = b.path("src/slice.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    const slice_tests = b.addTest(.{ .root_module = slice_mod });
+    const run_slice_tests = b.addRunArtifact(slice_tests);
+    test_step.dependOn(&run_slice_tests.step);
+
     // Docs
     const install_docs = b.addInstallDirectory(.{
         .source_dir = lib.getEmittedDocs(),

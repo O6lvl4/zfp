@@ -28,6 +28,7 @@ Pure comptime generics that compile away completely.
 | `tap` | ✅ | Side-effect injection in pipelines: `run`, `typed` |
 | `arrow` | ✅ | Arrow combinators for pairs: `first`, `second`, `split`, `fanout` |
 | `either` | ✅ | Left/Right sum type: `map`, `mapLeft`, `bimap`, `andThen`, and more |
+| `slice` | ✅ | Foldable over slices: `fold`, `all`, `any`, `find`, `count`, and more |
 
 ---
 
@@ -397,6 +398,64 @@ const result = either.andThen(parse("42"), validate);
 
 const bad = either.andThen(parse("999"), validate);
 // → .{ .left = "out of range" }
+```
+
+---
+
+## slice
+
+Foldable operations over Zig slices. All functions compile to the equivalent hand-written for loop — no allocations, no boxing.
+
+### API
+
+```zig
+const slice = @import("zfp").slice;
+
+// Fundamental fold (all others can be expressed as fold)
+slice.fold(items, init, f)          // left fold: f(f(f(init, a), b), c)
+
+// Predicates
+slice.all(items, predicate)         // true if predicate holds for every item
+slice.any(items, predicate)         // true if predicate holds for any item
+
+// Search
+slice.find(items, predicate)        // first match as ?T
+slice.findIndex(items, predicate)   // index of first match as ?usize
+
+// Count / iterate
+slice.count(items, predicate)       // number of matching items
+slice.forEach(items, f)             // call f on each item for side effects
+
+// Numeric
+slice.sum(items)                    // sum of all items (0 for empty)
+slice.min(items)                    // smallest item as ?T (null for empty)
+slice.max(items)                    // largest item as ?T (null for empty)
+```
+
+### Example: pipeline over a slice
+
+```zig
+const slice = @import("zfp").slice;
+
+const scores = [_]i32{ 42, 7, 98, 13, 55, 76 };
+
+// How many passing scores (≥ 50)?
+const passing = slice.count(&scores, struct {
+    fn call(x: i32) bool { return x >= 50; }
+}.call);
+// → 3
+
+// Best score
+const best = slice.max(&scores);
+// → @as(?i32, 98)
+
+// Total of passing scores only
+const total = slice.fold(&scores, @as(i32, 0), struct {
+    fn call(acc: i32, x: i32) i32 {
+        return acc + if (x >= 50) x else 0;
+    }
+}.call);
+// → 229
 ```
 
 ---

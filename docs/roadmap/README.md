@@ -51,6 +51,7 @@ Every module must satisfy the core constraints:
 | `tap` | — | ✅ Done | `run`, `typed` |
 | `arrow` | — | ✅ Done | `first`, `second`, `split`, `fanout` |
 | `either` | tagged union | ✅ Done | `map`, `mapLeft`, `bimap`, `andThen`, `isLeft`, `isRight`, `unwrapOr`, `unwrapOrElse`, `fromOption`, `toOption` |
+| `slice` | `[]T` | ✅ Done | `fold`, `all`, `any`, `find`, `findIndex`, `count`, `forEach`, `sum`, `min`, `max` |
 
 ---
 
@@ -124,7 +125,7 @@ option.orElse(null, @as(?i32, 42))    // → 42
 result.orElse(error.Bad, fallback)    // → fallback if error
 ```
 
-### `slice` — Foldable over slices
+### ~~`slice` — Foldable over slices~~ ✅ Done
 
 ```zig
 const slice = @import("zfp").slice;
