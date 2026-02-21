@@ -5,7 +5,7 @@
 //! `compose` produces a zero-size struct you can call, store, and pass around.
 //!
 //!   const f = compose(.{ g, h });
-//!   f.call(x)  ≡  h(g(x))    — reusable, named, zero-cost
+//!   f.run(x)  ≡  h(g(x))    — reusable, named, zero-cost
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────
 
@@ -62,9 +62,9 @@ fn applyFrom(comptime idx: usize, value: anytype, fns: anytype) PipeReturn(idx, 
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
-/// The type returned by `compose`. A zero-size struct with a single `call` method.
+/// The type returned by `compose`. A zero-size struct with a single `run` method.
 ///
-/// Use `compose(fns)` instead of constructing this directly.
+/// Use `from(fns)` instead of constructing this directly.
 pub fn Compose(comptime fns: anytype) type {
     const Fns = @TypeOf(fns);
     const fields = @typeInfo(Fns).@"struct".fields;
@@ -75,7 +75,7 @@ pub fn Compose(comptime fns: anytype) type {
 
     return struct {
         /// Apply the composed function to `value`.
-        pub inline fn call(self: @This(), value: In) Out {
+        pub inline fn run(self: @This(), value: In) Out {
             _ = self;
             return applyFrom(0, value, fns);
         }
@@ -84,17 +84,17 @@ pub fn Compose(comptime fns: anytype) type {
 
 /// Compose a sequence of functions into a reusable callable, applied left to right.
 ///
-///   from(.{ f, g, h }).call(x)  ≡  h(g(f(x)))
+///   from(.{ f, g, h }).run(x)  ≡  h(g(f(x)))
 ///
 /// **Reusable**: unlike `pipe`, the result can be stored, named, and called many times.
 ///
 ///   const process = from(.{ trim, parse, validate });
-///   const a = process.call(input_a);
-///   const b = process.call(input_b);
+///   const a = process.run(input_a);
+///   const b = process.run(input_b);
 ///
 /// **Types flow through the pipeline**:
 ///
-///   from(.{ f: A→B, g: B→C }).call(x: A) → C
+///   from(.{ f: A→B, g: B→C }).run(x: A) → C
 ///
 /// **Zero-cost**: the struct has no fields. `call` inlines to the same code as
 /// a hand-written `h(g(f(x)))`.
@@ -135,42 +135,42 @@ const isPositive = struct {
 test "compose: single function" {
     // 3 → 6
     const f = from(.{double});
-    try testing.expectEqual(@as(i32, 6), f.call(3));
+    try testing.expectEqual(@as(i32, 6), f.run(3));
 }
 
 test "compose: two functions" {
     // 3 → 6 → 7
     const f = from(.{ double, addOne });
-    try testing.expectEqual(@as(i32, 7), f.call(3));
+    try testing.expectEqual(@as(i32, 7), f.run(3));
 }
 
 test "compose: three functions" {
     // 3 → 6 → 7 → -7
     const f = from(.{ double, addOne, negate });
-    try testing.expectEqual(@as(i32, -7), f.call(3));
+    try testing.expectEqual(@as(i32, -7), f.run(3));
 }
 
 test "compose: type changes across steps" {
     // i32 → i32 → bool
     const f = from(.{ double, isPositive });
-    try testing.expect(f.call(3));
-    try testing.expect(!f.call(0));
+    try testing.expect(f.run(3));
+    try testing.expect(!f.run(0));
 }
 
 test "compose: reusable across multiple inputs" {
     const f = from(.{ double, addOne });
     // Apply to several values independently
-    try testing.expectEqual(@as(i32, 7), f.call(3)); // 3 → 6 → 7
-    try testing.expectEqual(@as(i32, 9), f.call(4)); // 4 → 8 → 9
-    try testing.expectEqual(@as(i32, 3), f.call(1)); // 1 → 2 → 3
+    try testing.expectEqual(@as(i32, 7), f.run(3)); // 3 → 6 → 7
+    try testing.expectEqual(@as(i32, 9), f.run(4)); // 4 → 8 → 9
+    try testing.expectEqual(@as(i32, 3), f.run(1)); // 1 → 2 → 3
 }
 
 test "compose: order is left to right" {
     // double then addOne ≠ addOne then double
     const double_then_add = from(.{ double, addOne });
     const add_then_double = from(.{ addOne, double });
-    try testing.expectEqual(@as(i32, 7), double_then_add.call(3)); // 3 → 6 → 7
-    try testing.expectEqual(@as(i32, 8), add_then_double.call(3)); // 3 → 4 → 8
+    try testing.expectEqual(@as(i32, 7), double_then_add.run(3)); // 3 → 6 → 7
+    try testing.expectEqual(@as(i32, 8), add_then_double.run(3)); // 3 → 4 → 8
 }
 
 test "compose: string → length → doubled" {
@@ -187,9 +187,9 @@ test "compose: string → length → doubled" {
 
     const f = from(.{ length, doubleUsize });
     // "hello" → 5 → 10
-    try testing.expectEqual(@as(usize, 10), f.call("hello"));
+    try testing.expectEqual(@as(usize, 10), f.run("hello"));
     // "hi" → 2 → 4
-    try testing.expectEqual(@as(usize, 4), f.call("hi"));
+    try testing.expectEqual(@as(usize, 4), f.run("hi"));
 }
 
 // ─── Usage example ────────────────────────────────────────────────────────────
@@ -198,8 +198,8 @@ test "compose: string → length → doubled" {
 //
 //   const normalise = compose.from(.{ trim, parse, clamp });
 //
-//   const a = normalise.call(raw_a);
-//   const b = normalise.call(raw_b);
+//   const a = normalise.run(raw_a);
+//   const b = normalise.run(raw_b);
 //
 // Compared to pipe (single-use, applied immediately):
 //

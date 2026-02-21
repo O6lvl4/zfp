@@ -177,7 +177,7 @@ const compose = @import("zfp").compose;
 
 // Compose functions left to right, return a reusable callable
 const f = compose.from(.{ g: A→B, h: B→C });
-f.call(x: A) // → C
+f.run(x: A) // → C
 ```
 
 ### Example: reusable transformation
@@ -191,8 +191,8 @@ const b = normalize(clamp(parse(raw_b)));
 
 // After — define once, apply many times
 const process = compose.from(.{ parse, clamp, normalize });
-const a = process.call(raw_a);
-const b = process.call(raw_b);
+const a = process.run(raw_a);
+const b = process.run(raw_b);
 ```
 
 ---
