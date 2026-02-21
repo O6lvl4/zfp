@@ -22,6 +22,7 @@ Pure comptime generics that compile away completely.
 |--------|--------|-------------|
 | `option` | ✅ | Utilities for Zig's native `?T` optional type |
 | `result` | ✅ | Utilities for Zig's native `anyerror!T` error union type |
+| `pipe` | ✅ | Left-to-right function pipeline with full type inference |
 
 ---
 
@@ -127,6 +128,39 @@ fn process(input: anyerror![]const u8) anyerror!i32 {
         doubleIfPositive,
     );
 }
+```
+
+---
+
+## pipe
+
+Apply a sequence of functions to a value, left to right. No allocations, no closures, no runtime overhead.
+
+### API
+
+```zig
+const pipe = @import("zfp").pipe;
+
+// Apply functions left to right
+pipe.pipe(value: A, .{ f: A→B, g: B→C, h: C→D }) D
+
+// Empty list is the identity
+pipe.pipe(value, .{}) // returns value unchanged
+```
+
+### Example: left-to-right composition
+
+```zig
+const pipe = @import("zfp").pipe;
+
+// Before — nested calls, read right to left
+const result = normalize(clamp(parse(raw)));
+
+// After — pipeline, read left to right
+const result = pipe.pipe(raw, .{ parse, clamp, normalize });
+
+// Types change naturally across steps
+// pipe(x: i32, .{ double: i32→i32, isPositive: i32→bool }) → bool
 ```
 
 ---

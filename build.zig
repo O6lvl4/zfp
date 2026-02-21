@@ -38,9 +38,18 @@ pub fn build(b: *std.Build) void {
     });
     const run_result_tests = b.addRunArtifact(result_tests);
 
+    const pipe_mod = b.createModule(.{
+        .root_source_file = b.path("src/pipe.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    const pipe_tests = b.addTest(.{ .root_module = pipe_mod });
+    const run_pipe_tests = b.addRunArtifact(pipe_tests);
+
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_option_tests.step);
     test_step.dependOn(&run_result_tests.step);
+    test_step.dependOn(&run_pipe_tests.step);
 
     // Docs
     const install_docs = b.addInstallDirectory(.{
