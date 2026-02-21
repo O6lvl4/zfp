@@ -204,7 +204,9 @@ pub const Last = struct {
     ///   concat(&.{@as(?i32, 1), @as(?i32, 2), null})  →  @as(?i32, 2)
     pub inline fn concat(items: anytype) Elem(@TypeOf(items)) {
         var result: Elem(@TypeOf(items)) = null;
-        for (items) |item| if (item != null) { result = item; };
+        for (items) |item| if (item != null) {
+            result = item;
+        };
         return result;
     }
 };
