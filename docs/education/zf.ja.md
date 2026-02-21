@@ -1,7 +1,7 @@
-# func — 関数コンビネータ
+# zf — 関数コンビネータ
 
 ```zig
-const func = @import("zfp").zf;
+const zf = @import("zfp").zf;
 ```
 
 ## これは何？
@@ -20,7 +20,7 @@ Haskell の Prelude にある `id`, `flip`, `const`, `on` の Zig 版です。
 引数をそのまま返します。一見無意味ですが、パイプラインの「何もしない」スロットやデフォルトの変換として不可欠です。
 
 ```zig
-const func = @import("zfp").zf;
+const zf = @import("zfp").zf;
 
 zf.id(42)      // → 42
 zf.id("hello") // → "hello"
@@ -30,6 +30,9 @@ zf.id(true)    // → true
 **パイプラインでの使用例:**
 
 ```zig
+const zf   = @import("zfp").zf;
+const pipe = @import("zfp").pipe;
+
 // 条件によって変換を適用するか、そのまま通す
 const transform = if (should_double) double else zf.id;
 const result = pipe.run(value, .{transform});
@@ -44,11 +47,13 @@ const result = pipe.run(value, .{transform});
 二項関数の最初の2引数を入れ替えて呼び出します。
 
 ```zig
-const func = @import("zfp").zf;
+const zf = @import("zfp").zf;
 
-const sub = fn(a: i32, b: i32) i32 { return a - b; };
+const sub = struct {
+    fn call(a: i32, b: i32) i32 { return a - b; }
+}.call;
 
-sub(10, 3)            // → 7   (10 - 3)
+sub(10, 3)          // → 7   (10 - 3)
 zf.flip(sub, 10, 3) // → -7  (3 - 10)
 ```
 
@@ -58,6 +63,9 @@ zf.flip(sub, 10, 3) // → -7  (3 - 10)
 `flip` を使えば、ラッパー関数を書かずに任意の二項関数を適合させられます。
 
 ```zig
+const zf  = @import("zfp").zf;
+const std = @import("std");
+
 // std.mem.startsWith(haystack, prefix) の順序だが
 // (prefix, haystack) の形で渡したい場合
 zf.flip(std.mem.startsWith, prefix, haystack)
@@ -73,7 +81,7 @@ zf.flip(std.mem.startsWith, prefix, haystack)
 `const` は Zig の予約語なので `const_` という名前にしています。
 
 ```zig
-const func = @import("zfp").zf;
+const zf = @import("zfp").zf;
 
 zf.const_(42, "ignored") // → 42
 zf.const_(true, 9999)    // → true
@@ -82,6 +90,9 @@ zf.const_(true, 9999)    // → true
 **パイプラインでの使用例:**
 
 ```zig
+const zf   = @import("zfp").zf;
+const pipe = @import("zfp").pipe;
+
 // どんな値でも固定の番兵値に置き換える
 const alwaysZero = struct {
     fn call(x: i32) i32 { return zf.const_(@as(i32, 0), x); }
@@ -103,13 +114,15 @@ on(f, g, a, b)  ≡  f(g(a), g(b))
 ```
 
 ```zig
-const func = @import("zfp").zf;
-const std   = @import("std");
+const zf  = @import("zfp").zf;
+const std = @import("std");
 
-const byLength = zf.on(std.math.order, sliceLen);
+const strLen = struct {
+    fn call(s: []const u8) usize { return s.len; }
+}.call;
 
-byLength("foo", "hello") // → .lt  (3 < 5)
-byLength("hi",  "ok")    // → .eq  (2 == 2)
+zf.on(std.math.order, strLen, "foo", "hello") // → .lt  (3 < 5)
+zf.on(std.math.order, strLen, "hi",  "ok")    // → .eq  (2 == 2)
 ```
 
 **なぜ重要か:**
@@ -117,6 +130,9 @@ byLength("hi",  "ok")    // → .eq  (2 == 2)
 `on` を使うと、毎回カスタムラッパーを書かずに、*派生したプロパティ*を使って比較や結合を行えます。
 
 ```zig
+const zf  = @import("zfp").zf;
+const std = @import("std");
+
 // 文字列を長さでソートする
 std.sort.block([]const u8, items, {}, struct {
     fn lessThan(_: void, a: []const u8, b: []const u8) bool {
@@ -132,11 +148,11 @@ std.sort.block([]const u8, items, {}, struct {
 `fn` は Zig の予約語です。モジュール名に使うと、呼び出し側は毎回 `@"fn"` と書く必要があり、見苦しくなります。
 
 ```zig
-// 名前を変えない場合 — 見苦しい
-const f = @import("zfp").@"fn";
+// fn のまま — 見苦しい
+const zf = @import("zfp").@"fn";
 
-// func にした場合 — すっきり
-const func = @import("zfp").zf;
+// zf にした場合 — すっきり
+const zf = @import("zfp").zf;
 ```
 
 ---
@@ -158,9 +174,10 @@ const func = @import("zfp").zf;
 ## 合成の例
 
 ```zig
-const func    = @import("zfp").zf;
+const zf      = @import("zfp").zf;
 const pipe    = @import("zfp").pipe;
 const compose = @import("zfp").compose;
+const std     = @import("std");
 
 // スコアフィールドで降順に比較する
 const byScoreDesc = struct {

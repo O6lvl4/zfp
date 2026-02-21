@@ -1,7 +1,7 @@
-# func — Function Combinators
+# zf — Function Combinators
 
 ```zig
-const func = @import("zfp").zf;
+const zf = @import("zfp").zf;
 ```
 
 ## What is it?
@@ -22,7 +22,7 @@ Returns its argument unchanged. Sounds useless, but is essential as a no-op slot
 in pipelines or as a default transformation.
 
 ```zig
-const func = @import("zfp").zf;
+const zf = @import("zfp").zf;
 
 zf.id(42)      // → 42
 zf.id("hello") // → "hello"
@@ -32,6 +32,9 @@ zf.id(true)    // → true
 **In a pipeline:**
 
 ```zig
+const zf   = @import("zfp").zf;
+const pipe = @import("zfp").pipe;
+
 // Conditionally apply a transformation, or pass through unchanged
 const transform = if (should_double) double else zf.id;
 const result = pipe.run(value, .{transform});
@@ -46,12 +49,14 @@ const result = pipe.run(value, .{transform});
 Calls a binary function with its first two arguments swapped.
 
 ```zig
-const func = @import("zfp").zf;
+const zf = @import("zfp").zf;
 
-const sub = fn(a: i32, b: i32) i32 { return a - b; };
+const sub = struct {
+    fn call(a: i32, b: i32) i32 { return a - b; }
+}.call;
 
-sub(10, 3)         // → 7   (10 - 3)
-zf.flip(sub, 10, 3) // → -7  (3 - 10)
+sub(10, 3)             // → 7   (10 - 3)
+zf.flip(sub, 10, 3)    // → -7  (3 - 10)
 ```
 
 **Why it matters:**
@@ -60,6 +65,9 @@ When composing functions, argument order often doesn't match what a pipeline nee
 `flip` lets you adapt any binary function without wrapping it.
 
 ```zig
+const zf  = @import("zfp").zf;
+const std = @import("std");
+
 // std.mem.startsWith(haystack, prefix)
 // but you have (prefix, haystack) — flip fixes the order
 zf.flip(std.mem.startsWith, prefix, haystack)
@@ -75,7 +83,7 @@ Returns the first argument, ignoring the second.
 Named `const_` because `const` is a reserved keyword in Zig.
 
 ```zig
-const func = @import("zfp").zf;
+const zf = @import("zfp").zf;
 
 zf.const_(42, "ignored") // → 42
 zf.const_(true, 9999)    // → true
@@ -84,6 +92,9 @@ zf.const_(true, 9999)    // → true
 **In a pipeline:**
 
 ```zig
+const zf   = @import("zfp").zf;
+const pipe = @import("zfp").pipe;
+
 // Replace any value with a fixed sentinel
 const alwaysZero = struct {
     fn call(x: i32) i32 { return zf.const_(@as(i32, 0), x); }
@@ -105,13 +116,15 @@ on(f, g, a, b)  ≡  f(g(a), g(b))
 ```
 
 ```zig
-const func = @import("zfp").zf;
-const std   = @import("std");
+const zf  = @import("zfp").zf;
+const std = @import("std");
 
-const byLength = zf.on(std.math.order, sliceLen);
+const strLen = struct {
+    fn call(s: []const u8) usize { return s.len; }
+}.call;
 
-byLength("foo", "hello") // → .lt  (3 < 5)
-byLength("hi",  "ok")    // → .eq  (2 == 2)
+zf.on(std.math.order, strLen, "foo", "hello") // → .lt  (3 < 5)
+zf.on(std.math.order, strLen, "hi",  "ok")    // → .eq  (2 == 2)
 ```
 
 **Why it matters:**
@@ -120,6 +133,9 @@ byLength("hi",  "ok")    // → .eq  (2 == 2)
 without writing a custom wrapper each time.
 
 ```zig
+const zf  = @import("zfp").zf;
+const std = @import("std");
+
 // Sort strings by length
 std.sort.block([]const u8, items, {}, struct {
     fn lessThan(_: void, a: []const u8, b: []const u8) bool {
@@ -136,11 +152,11 @@ std.sort.block([]const u8, items, {}, struct {
 caller to write `@"fn"`, which is ugly:
 
 ```zig
-// Without renaming — ugly
-const f = @import("zfp").@"fn";
+// With fn — ugly
+const zf = @import("zfp").@"fn";
 
-// With func — clean
-const func = @import("zfp").zf;
+// With zf — clean
+const zf = @import("zfp").zf;
 ```
 
 ---
@@ -162,9 +178,10 @@ No virtual dispatch, no boxing, no wrapper overhead.
 ## Composition example
 
 ```zig
-const func    = @import("zfp").zf;
+const zf      = @import("zfp").zf;
 const pipe    = @import("zfp").pipe;
 const compose = @import("zfp").compose;
+const std     = @import("std");
 
 // Compare two records by their score field, descending
 const byScoreDesc = struct {
