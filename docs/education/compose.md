@@ -14,8 +14,8 @@ const result = pipe.run(3, .{ double, addOne }); // 7
 
 // compose: create a reusable function, apply later
 const f = compose.from(.{ double, addOne });
-const result = f.call(3); // 7
-const again  = f.call(5); // 11  — same transformation, different input
+const result = f.run(3); // 7
+const again  = f.run(5); // 11  — same transformation, different input
 ```
 
 ---
@@ -49,9 +49,9 @@ const compose = @import("zfp").compose;
 
 const process = compose.from(.{ parse, clamp, normalize });
 
-const a = process.call(raw_a);
-const b = process.call(raw_b);
-const c = process.call(raw_c);
+const a = process.run(raw_a);
+const b = process.run(raw_b);
+const c = process.run(raw_c);
 ```
 
 The transformation is defined in one place. Both machine code paths are identical.
@@ -68,7 +68,7 @@ compose.from(fns: tuple) Callable
 - Returns a **zero-size struct** with a single `call` method
 
 ```zig
-callable.call(value: A) ReturnType
+callable.run(value: A) ReturnType
 ```
 
 - Applies the composed function to `value`
@@ -82,7 +82,7 @@ You can also use `compose.Compose(fns)` to name the type explicitly:
 const compose = @import("zfp").compose;
 
 const MyFn = compose.Compose(.{ double, addOne });
-// MyFn.call(3) == 7
+// MyFn.run(3) == 7
 ```
 
 ---
@@ -94,8 +94,8 @@ Types flow left to right at compile time. Each step's return type becomes the ne
 ```zig
 // i32 → i32 → bool
 const check = compose.from(.{ double, isPositive });
-const ok: bool = check.call(3); // true  (3 → 6 → true)
-const no: bool = check.call(0); // false (0 → 0 → false)
+const ok: bool = check.run(3); // true  (3 → 6 → true)
+const no: bool = check.run(0); // false (0 → 0 → false)
 ```
 
 ---
@@ -112,7 +112,7 @@ fn addOne(x: i32) i32  { return x + 1; }
 fn negate(x: i32) i32  { return -x; }
 
 const f = compose.from(.{ double, addOne, negate });
-// f.call(3) → double(3)=6 → addOne(6)=7 → negate(7)=-7
+// f.run(3) → double(3)=6 → addOne(6)=7 → negate(7)=-7
 ```
 
 ### Type-changing composition
@@ -124,8 +124,8 @@ fn length(s: []const u8) usize { return s.len; }
 fn doubled(n: usize) usize     { return n * 2; }
 
 const f = compose.from(.{ length, doubled });
-// f.call("hello") → 5 → 10   (type: usize)
-// f.call("hi")    → 2 → 4
+// f.run("hello") → 5 → 10   (type: usize)
+// f.run("hi")    → 2 → 4
 ```
 
 ### Batch processing
@@ -145,7 +145,7 @@ const firstChar = compose.from(.{ trim, toUpperFirst });
 
 const inputs = [_][]const u8{ "  hello", " world ", "zig " };
 for (inputs) |input| {
-    const c = firstChar.call(input);
+    const c = firstChar.run(input);
     // 'H', 'W', 'Z'
     _ = c;
 }

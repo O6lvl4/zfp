@@ -14,8 +14,8 @@ const result = pipe.run(3, .{ double, addOne }); // 7
 
 // compose：再利用できる関数を作り、後で適用する
 const f = compose.from(.{ double, addOne });
-const result = f.call(3); // 7
-const again  = f.call(5); // 11  — 同じ変換を別の入力に
+const result = f.run(3); // 7
+const again  = f.run(5); // 11  — 同じ変換を別の入力に
 ```
 
 ---
@@ -49,9 +49,9 @@ const compose = @import("zfp").compose;
 
 const process = compose.from(.{ parse, clamp, normalize });
 
-const a = process.call(raw_a);
-const b = process.call(raw_b);
-const c = process.call(raw_c);
+const a = process.run(raw_a);
+const b = process.run(raw_b);
+const c = process.run(raw_c);
 ```
 
 変換の定義が一箇所にまとまります。生成されるマシンコードは同一です。
@@ -68,7 +68,7 @@ compose.from(fns: tuple) Callable
 - 戻り値は `call` メソッドを持つ**ゼロサイズ構造体**
 
 ```zig
-callable.call(value: A) ReturnType
+callable.run(value: A) ReturnType
 ```
 
 - 合成された関数を `value` に適用する
@@ -82,7 +82,7 @@ callable.call(value: A) ReturnType
 const compose = @import("zfp").compose;
 
 const MyFn = compose.Compose(.{ double, addOne });
-// MyFn.call(3) == 7
+// MyFn.run(3) == 7
 ```
 
 ---
@@ -94,8 +94,8 @@ const MyFn = compose.Compose(.{ double, addOne });
 ```zig
 // i32 → i32 → bool
 const check = compose.from(.{ double, isPositive });
-const ok: bool = check.call(3); // true  (3 → 6 → true)
-const no: bool = check.call(0); // false (0 → 0 → false)
+const ok: bool = check.run(3); // true  (3 → 6 → true)
+const no: bool = check.run(0); // false (0 → 0 → false)
 ```
 
 ---
@@ -112,7 +112,7 @@ fn addOne(x: i32) i32  { return x + 1; }
 fn negate(x: i32) i32  { return -x; }
 
 const f = compose.from(.{ double, addOne, negate });
-// f.call(3) → double(3)=6 → addOne(6)=7 → negate(7)=-7
+// f.run(3) → double(3)=6 → addOne(6)=7 → negate(7)=-7
 ```
 
 ### 型が変わる合成
@@ -124,8 +124,8 @@ fn length(s: []const u8) usize { return s.len; }
 fn doubled(n: usize) usize     { return n * 2; }
 
 const f = compose.from(.{ length, doubled });
-// f.call("hello") → 5 → 10   (型: usize)
-// f.call("hi")    → 2 → 4
+// f.run("hello") → 5 → 10   (型: usize)
+// f.run("hi")    → 2 → 4
 ```
 
 ### バッチ処理
@@ -145,7 +145,7 @@ const firstChar = compose.from(.{ trim, toUpperFirst });
 
 const inputs = [_][]const u8{ "  hello", " world ", "zig " };
 for (inputs) |input| {
-    const c = firstChar.call(input);
+    const c = firstChar.run(input);
     // 'H', 'W', 'Z'
     _ = c;
 }
