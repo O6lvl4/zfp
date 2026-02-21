@@ -20,8 +20,8 @@ Pure comptime generics that compile away completely.
 
 | Module | Status | Description |
 |--------|--------|-------------|
-| `option` | ✅ | Utilities for Zig's native `?T` optional type |
-| `result` | ✅ | Utilities for Zig's native `anyerror!T` error union type |
+| `option` | ✅ | Utilities for Zig's native `?T` optional type — includes `ap`, `orElse` |
+| `result` | ✅ | Utilities for Zig's native `anyerror!T` error union type — includes `ap`, `orElse` |
 | `pipe` | ✅ | Left-to-right function pipeline with full type inference |
 | `compose` | ✅ | Compose functions into a reusable callable |
 | `zf` | ✅ | Function combinators: `id`, `flip`, `const_`, `on` |
@@ -50,6 +50,15 @@ option.unwrapOr(value: ?T, default: T) T
 
 // Keep the value only if the predicate holds
 option.filter(value: ?T, predicate: fn(T) bool) ?T
+
+// Keep the value only if the predicate holds
+option.filter(value: ?T, predicate: fn(T) bool) ?T
+
+// Apply a wrapped function to a wrapped value (Applicative)
+option.ap(f: ?fn(T)U, value: ?T) ?U
+
+// First non-null wins (Alternative)
+option.orElse(value: ?T, fallback: ?T) ?T
 
 // Null checks
 option.isSome(value: ?T) bool
@@ -106,6 +115,12 @@ result.unwrapOrElse(value: E!T, f: fn(E) T) T
 
 // Convert to optional, discarding error information
 result.toOption(value: E!T) ?T
+
+// Apply a wrapped function to a wrapped value (Applicative)
+result.ap(f: E!fn(T)U, value: E!T) E!U
+
+// First success wins (Alternative)
+result.orElse(value: E!T, fallback: E!T) E!T
 
 // Error checks
 result.isOk(value: E!T) bool
