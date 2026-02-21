@@ -24,6 +24,7 @@ Pure comptime generics that compile away completely.
 | `result` | ✅ | Utilities for Zig's native `anyerror!T` error union type |
 | `pipe` | ✅ | Left-to-right function pipeline with full type inference |
 | `compose` | ✅ | Compose functions into a reusable callable |
+| `zf` | ✅ | Function combinators: `id`, `flip`, `const_`, `on` |
 
 ---
 
@@ -193,6 +194,46 @@ const b = normalize(clamp(parse(raw_b)));
 const process = compose.from(.{ parse, clamp, normalize });
 const a = process.run(raw_a);
 const b = process.run(raw_b);
+```
+
+---
+
+## zf
+
+Primitive function combinators — the Zig equivalents of Haskell's `id`, `flip`, `const`, and `on`.
+
+### API
+
+```zig
+const zf = @import("zfp").zf;
+
+// Identity — returns the argument unchanged
+zf.id(x: T) T
+
+// Flip — call f with arguments swapped: flip(f, a, b) ≡ f(b, a)
+zf.flip(f: fn(A,B)C, a: A, b: B) C
+
+// Constant — return x, ignore the second argument
+zf.const_(x: T, _: anytype) T
+
+// On — apply g to both arguments, then combine with f: on(f, g, a, b) ≡ f(g(a), g(b))
+zf.on(f: fn(B,B)C, g: fn(A)B, a: A, b: A) C
+```
+
+### Example: composing with combinators
+
+```zig
+const zf = @import("zfp").zf;
+
+// Compare two strings by length
+const byLength = struct {
+    fn call(a: []const u8, b: []const u8) std.math.Order {
+        return zf.on(std.math.order, strLen, a, b);
+    }
+}.call;
+
+byLength("foo", "hello") // → .lt
+byLength("hi",  "ok")    // → .eq
 ```
 
 ---
