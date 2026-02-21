@@ -10,10 +10,10 @@ const pipe    = @import("zfp").pipe;
 const compose = @import("zfp").compose;
 
 // pipe: apply now, get result
-const result = pipe.pipe(3, .{ double, addOne }); // 7
+const result = pipe.run(3, .{ double, addOne }); // 7
 
 // compose: create a reusable function, apply later
-const f = compose.compose(.{ double, addOne });
+const f = compose.from(.{ double, addOne });
 const result = f.call(3); // 7
 const again  = f.call(5); // 11  — same transformation, different input
 ```
@@ -33,9 +33,9 @@ const c = normalize(clamp(parse(raw_c)));
 Even with `pipe`, the tuple is repeated:
 
 ```zig
-const a = pipe.pipe(raw_a, .{ parse, clamp, normalize });
-const b = pipe.pipe(raw_b, .{ parse, clamp, normalize }); // repeated
-const c = pipe.pipe(raw_c, .{ parse, clamp, normalize }); // repeated
+const a = pipe.run(raw_a, .{ parse, clamp, normalize });
+const b = pipe.run(raw_b, .{ parse, clamp, normalize }); // repeated
+const c = pipe.run(raw_c, .{ parse, clamp, normalize }); // repeated
 ```
 
 ---
@@ -47,7 +47,7 @@ const c = pipe.pipe(raw_c, .{ parse, clamp, normalize }); // repeated
 ```zig
 const compose = @import("zfp").compose;
 
-const process = compose.compose(.{ parse, clamp, normalize });
+const process = compose.from(.{ parse, clamp, normalize });
 
 const a = process.call(raw_a);
 const b = process.call(raw_b);
@@ -61,7 +61,7 @@ The transformation is defined in one place. Both machine code paths are identica
 ## API
 
 ```zig
-compose.compose(fns: tuple) Callable
+compose.from(fns: tuple) Callable
 ```
 
 - `fns` — anonymous struct (tuple literal) of functions, applied left to right
@@ -93,7 +93,7 @@ Types flow left to right at compile time. Each step's return type becomes the ne
 
 ```zig
 // i32 → i32 → bool
-const check = compose.compose(.{ double, isPositive });
+const check = compose.from(.{ double, isPositive });
 const ok: bool = check.call(3); // true  (3 → 6 → true)
 const no: bool = check.call(0); // false (0 → 0 → false)
 ```
@@ -111,7 +111,7 @@ fn double(x: i32) i32  { return x * 2; }
 fn addOne(x: i32) i32  { return x + 1; }
 fn negate(x: i32) i32  { return -x; }
 
-const f = compose.compose(.{ double, addOne, negate });
+const f = compose.from(.{ double, addOne, negate });
 // f.call(3) → double(3)=6 → addOne(6)=7 → negate(7)=-7
 ```
 
@@ -123,7 +123,7 @@ const compose = @import("zfp").compose;
 fn length(s: []const u8) usize { return s.len; }
 fn doubled(n: usize) usize     { return n * 2; }
 
-const f = compose.compose(.{ length, doubled });
+const f = compose.from(.{ length, doubled });
 // f.call("hello") → 5 → 10   (type: usize)
 // f.call("hi")    → 2 → 4
 ```
@@ -141,7 +141,7 @@ fn toUpperFirst(s: []const u8) u8 {
     return if (s.len > 0) std.ascii.toUpper(s[0]) else 0;
 }
 
-const firstChar = compose.compose(.{ trim, toUpperFirst });
+const firstChar = compose.from(.{ trim, toUpperFirst });
 
 const inputs = [_][]const u8{ "  hello", " world ", "zig " };
 for (inputs) |input| {

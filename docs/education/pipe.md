@@ -23,7 +23,7 @@ As the pipeline grows, the nesting deepens and readability drops.
 ```zig
 const pipe = @import("zfp").pipe;
 
-const result = pipe.pipe(raw, .{ parse, clamp, normalize });
+const result = pipe.run(raw, .{ parse, clamp, normalize });
 //                             ^^^^  ^^^^^  ^^^^^^^^^
 //                             step1 step2  step3 — read left to right
 ```
@@ -35,7 +35,7 @@ Execution order matches reading order. Adding a step means appending to the tupl
 ## API
 
 ```zig
-pipe.pipe(value: A, fns: tuple) ReturnType
+pipe.run(value: A, fns: tuple) ReturnType
 ```
 
 - `value` — the initial input
@@ -45,7 +45,7 @@ pipe.pipe(value: A, fns: tuple) ReturnType
 The empty tuple is the identity:
 
 ```zig
-pipe.pipe(x, .{}) // returns x unchanged
+pipe.run(x, .{}) // returns x unchanged
 ```
 
 ---
@@ -56,7 +56,7 @@ Types flow through the pipeline at **compile time**. Each function's return type
 
 ```zig
 // i32 → i32 → bool
-const positive = pipe.pipe(@as(i32, 3), .{ double, isPositive });
+const positive = pipe.run(@as(i32, 3), .{ double, isPositive });
 //                                              ^       ^
 //                                         i32→i32  i32→bool
 // type of `positive` is bool
@@ -78,7 +78,7 @@ fn addOne(x: i32) i32 { return x + 1; }
 fn negate(x: i32) i32 { return -x; }
 
 // 3 → 6 → 7 → -7
-const result = pipe.pipe(@as(i32, 3), .{ double, addOne, negate });
+const result = pipe.run(@as(i32, 3), .{ double, addOne, negate });
 // result == -7
 ```
 
@@ -91,7 +91,7 @@ fn length(s: []const u8) usize { return s.len; }
 fn doubled(n: usize) usize { return n * 2; }
 
 // "hello" → 5 → 10
-const result = pipe.pipe(@as([]const u8, "hello"), .{ length, doubled });
+const result = pipe.run(@as([]const u8, "hello"), .{ length, doubled });
 // result == 10, type is usize
 ```
 
@@ -112,7 +112,7 @@ fn toUpper(allocator: std.mem.Allocator) fn([]const u8) []u8 {
 const result = try validate(parseInt(trim(raw)));
 
 // After
-const result = pipe.pipe(raw, .{ trim, parseInt, validate });
+const result = pipe.run(raw, .{ trim, parseInt, validate });
 ```
 
 ---

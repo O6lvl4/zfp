@@ -45,20 +45,20 @@ fn applyFrom(comptime idx: usize, value: anytype, fns: anytype) PipeReturn(idx, 
 
 /// Apply a sequence of functions to a value, left to right.
 ///
-///   pipe(x, .{ f, g, h }) ≡ h(g(f(x)))
+///   run(x, .{ f, g, h }) ≡ h(g(f(x)))
 ///
 /// Types flow through the pipeline:
 ///
-///   pipe(x: A, .{ f: A→B, g: B→C, h: C→D }) → D
+///   run(x: A, .{ f: A→B, g: B→C, h: C→D }) → D
 ///
 /// An empty function list is the identity:
 ///
-///   pipe(x, .{}) ≡ x
+///   run(x, .{}) ≡ x
 ///
 /// **Zero-cost**: the tuple is a comptime construct. Each function application
 /// is resolved at compile time; the generated code is identical to a
 /// hand-written `h(g(f(x)))`.
-pub inline fn pipe(value: anytype, fns: anytype) PipeReturn(0, @TypeOf(value), @TypeOf(fns)) {
+pub inline fn run(value: anytype, fns: anytype) PipeReturn(0, @TypeOf(value), @TypeOf(fns)) {
     return applyFrom(0, value, fns);
 }
 
@@ -93,28 +93,28 @@ const isPositive = struct {
 // pipe ─────────────────────────────────────────────────────────────────────────
 
 test "pipe: identity — empty function list" {
-    try testing.expectEqual(@as(i32, 42), pipe(@as(i32, 42), .{}));
+    try testing.expectEqual(@as(i32, 42), run(@as(i32, 42), .{}));
 }
 
 test "pipe: single function" {
     // 3 → 6
-    try testing.expectEqual(@as(i32, 6), pipe(@as(i32, 3), .{double}));
+    try testing.expectEqual(@as(i32, 6), run(@as(i32, 3), .{double}));
 }
 
 test "pipe: two functions" {
     // 3 → 6 → 7
-    try testing.expectEqual(@as(i32, 7), pipe(@as(i32, 3), .{ double, addOne }));
+    try testing.expectEqual(@as(i32, 7), run(@as(i32, 3), .{ double, addOne }));
 }
 
 test "pipe: three functions" {
     // 3 → 6 → 7 → -7
-    try testing.expectEqual(@as(i32, -7), pipe(@as(i32, 3), .{ double, addOne, negate }));
+    try testing.expectEqual(@as(i32, -7), run(@as(i32, 3), .{ double, addOne, negate }));
 }
 
 test "pipe: type changes across steps" {
     // i32 → i32 → bool
-    try testing.expect(pipe(@as(i32, 3), .{ double, isPositive }));
-    try testing.expect(!pipe(@as(i32, 0), .{ negate, isPositive }));
+    try testing.expect(run(@as(i32, 3), .{ double, isPositive }));
+    try testing.expect(!run(@as(i32, 0), .{ negate, isPositive }));
 }
 
 test "pipe: string → length → doubled" {
@@ -129,20 +129,20 @@ test "pipe: string → length → doubled" {
         }
     }.call;
     // "hello" → 5 → 10
-    try testing.expectEqual(@as(usize, 10), pipe(@as([]const u8, "hello"), .{ length, doubleUsize }));
+    try testing.expectEqual(@as(usize, 10), run(@as([]const u8, "hello"), .{ length, doubleUsize }));
 }
 
 test "pipe: order is left to right" {
     // Verify left-to-right: double then negate ≠ negate then double (for non-zero)
     // 3 → 6 → -6
-    try testing.expectEqual(@as(i32, -6), pipe(@as(i32, 3), .{ double, negate }));
+    try testing.expectEqual(@as(i32, -6), run(@as(i32, 3), .{ double, negate }));
     // 3 → -3 → -6
-    try testing.expectEqual(@as(i32, -6), pipe(@as(i32, 3), .{ negate, double }));
+    try testing.expectEqual(@as(i32, -6), run(@as(i32, 3), .{ negate, double }));
     // Both -6 here, use a value where order matters
     // 3 → 6 → 7 (double then addOne)
-    try testing.expectEqual(@as(i32, 7), pipe(@as(i32, 3), .{ double, addOne }));
+    try testing.expectEqual(@as(i32, 7), run(@as(i32, 3), .{ double, addOne }));
     // 3 → 4 → 8 (addOne then double)
-    try testing.expectEqual(@as(i32, 8), pipe(@as(i32, 3), .{ addOne, double }));
+    try testing.expectEqual(@as(i32, 8), run(@as(i32, 3), .{ addOne, double }));
 }
 
 // ─── Usage example ────────────────────────────────────────────────────────────
@@ -153,7 +153,7 @@ test "pipe: order is left to right" {
 //
 // After (pipe, read left to right):
 //
-//   const result = pipe.pipe(raw, .{ parse, clamp, normalize });
+//   const result = pipe.run(raw, .{ parse, clamp, normalize });
 //
 // Both produce identical machine code.
 // The pipeline grows naturally: add a step by appending to the tuple.

@@ -23,7 +23,7 @@ const result = normalize(clamp(parse(raw)));
 ```zig
 const pipe = @import("zfp").pipe;
 
-const result = pipe.pipe(raw, .{ parse, clamp, normalize });
+const result = pipe.run(raw, .{ parse, clamp, normalize });
 //                             ^^^^  ^^^^^  ^^^^^^^^^
 //                             第1段 第2段  第3段 ← 左から右に読める
 ```
@@ -35,7 +35,7 @@ const result = pipe.pipe(raw, .{ parse, clamp, normalize });
 ## API
 
 ```zig
-pipe.pipe(value: A, fns: tuple) ReturnType
+pipe.run(value: A, fns: tuple) ReturnType
 ```
 
 - `value` — 最初の入力値
@@ -45,7 +45,7 @@ pipe.pipe(value: A, fns: tuple) ReturnType
 空のタプルは恒等変換：
 
 ```zig
-pipe.pipe(x, .{}) // x をそのまま返す
+pipe.run(x, .{}) // x をそのまま返す
 ```
 
 ---
@@ -56,7 +56,7 @@ pipe.pipe(x, .{}) // x をそのまま返す
 
 ```zig
 // i32 → i32 → bool
-const positive = pipe.pipe(@as(i32, 3), .{ double, isPositive });
+const positive = pipe.run(@as(i32, 3), .{ double, isPositive });
 //                                              ^       ^
 //                                         i32→i32  i32→bool
 // `positive` の型は bool
@@ -78,7 +78,7 @@ fn addOne(x: i32) i32 { return x + 1; }
 fn negate(x: i32) i32 { return -x; }
 
 // 3 → 6 → 7 → -7
-const result = pipe.pipe(@as(i32, 3), .{ double, addOne, negate });
+const result = pipe.run(@as(i32, 3), .{ double, addOne, negate });
 // result == -7
 ```
 
@@ -91,7 +91,7 @@ fn length(s: []const u8) usize { return s.len; }
 fn doubled(n: usize) usize { return n * 2; }
 
 // "hello" → 5 → 10
-const result = pipe.pipe(@as([]const u8, "hello"), .{ length, doubled });
+const result = pipe.run(@as([]const u8, "hello"), .{ length, doubled });
 // result == 10、型は usize
 ```
 
@@ -109,7 +109,7 @@ fn trim(s: []const u8) []const u8 {
 const result = try validate(parseInt(trim(raw)));
 
 // After（左から右に自然に読める）
-const result = pipe.pipe(raw, .{ trim, parseInt, validate });
+const result = pipe.run(raw, .{ trim, parseInt, validate });
 ```
 
 ---
