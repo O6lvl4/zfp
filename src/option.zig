@@ -73,6 +73,31 @@ pub inline fn unwrapOr(value: anytype, default: anytype) ChildType(@TypeOf(value
     return value orelse default;
 }
 
+/// Apply a wrapped function to a wrapped value. Both must be non-null to produce a result.
+///
+///   ap(?fn(T)U, ?T) → ?U
+///
+/// Haskell: `(<*>) :: Maybe (a -> b) -> Maybe a -> Maybe b`
+///
+/// **Zero-cost**: two conditional branches, no allocation.
+pub inline fn ap(f: anytype, value: anytype) ?FnReturnType(ChildType(@TypeOf(f))) {
+    if (f) |func| {
+        if (value) |v| return func(v);
+    }
+    return null;
+}
+
+/// Return `value` if non-null, otherwise `fallback`.
+///
+///   orElse(?T, ?T) → ?T
+///
+/// Haskell: `(<|>) :: Alternative f => f a -> f a -> f a`
+///
+/// **Zero-cost**: compiles directly to Zig's `orelse` expression.
+pub inline fn orElse(value: anytype, fallback: anytype) @TypeOf(value) {
+    return value orelse fallback;
+}
+
 /// Keep the value only when `predicate(v)` is true; otherwise return null.
 ///
 ///   filter(?T, fn(T) bool) → ?T
@@ -228,6 +253,62 @@ test "unwrapOr: returns default when null" {
 test "unwrapOr: works with slices" {
     const result: []const u8 = unwrapOr(@as(?[]const u8, null), "default");
     try testing.expectEqualStrings("default", result);
+}
+
+// ap ───────────────────────────────────────────────────────────────────────────
+
+test "ap: applies wrapped function to wrapped value" {
+    const double = struct {
+        fn call(x: i32) i32 {
+            return x * 2;
+        }
+    }.call;
+    const result = ap(@as(?@TypeOf(double), double), @as(?i32, 21));
+    try testing.expectEqual(@as(?i32, 42), result);
+}
+
+test "ap: returns null when function is null" {
+    const double = struct {
+        fn call(x: i32) i32 {
+            return x * 2;
+        }
+    }.call;
+    const result = ap(@as(?@TypeOf(double), null), @as(?i32, 21));
+    try testing.expectEqual(@as(?i32, null), result);
+}
+
+test "ap: returns null when value is null" {
+    const double = struct {
+        fn call(x: i32) i32 {
+            return x * 2;
+        }
+    }.call;
+    const result = ap(@as(?@TypeOf(double), double), @as(?i32, null));
+    try testing.expectEqual(@as(?i32, null), result);
+}
+
+test "ap: returns null when both are null" {
+    const double = struct {
+        fn call(x: i32) i32 {
+            return x * 2;
+        }
+    }.call;
+    const result = ap(@as(?@TypeOf(double), null), @as(?i32, null));
+    try testing.expectEqual(@as(?i32, null), result);
+}
+
+// orElse ───────────────────────────────────────────────────────────────────────
+
+test "orElse: returns first value when non-null" {
+    try testing.expectEqual(@as(?i32, 1), orElse(@as(?i32, 1), @as(?i32, 2)));
+}
+
+test "orElse: returns fallback when first is null" {
+    try testing.expectEqual(@as(?i32, 2), orElse(@as(?i32, null), @as(?i32, 2)));
+}
+
+test "orElse: returns null when both are null" {
+    try testing.expectEqual(@as(?i32, null), orElse(@as(?i32, null), @as(?i32, null)));
 }
 
 // filter ───────────────────────────────────────────────────────────────────────

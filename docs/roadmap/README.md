@@ -103,7 +103,7 @@ either.fromOption(opt, leftVal)    // ?T → Either(L, R)
 either.toOption(e)                 // Either → ?T, discarding Left
 ```
 
-### `ap` — Applicative (`<*>`)
+### ~~`ap` — Applicative (`<*>`)~~ ✅ Done
 
 Applying a wrapped function to a wrapped value. Added to `option` and `result`.
 
@@ -115,7 +115,7 @@ option.ap(some_fn, some_val)
 result.ap(ok_fn, ok_val)
 ```
 
-### `orElse` — Alternative (`<|>`)
+### ~~`orElse` — Alternative (`<|>`)~~ ✅ Done
 
 First success wins. Added to `option` and `result`.
 

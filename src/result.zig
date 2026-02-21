@@ -69,6 +69,28 @@ pub inline fn andThen(value: anytype, f: anytype) FnReturnType(@TypeOf(f)) {
     return f(value catch |err| return err);
 }
 
+/// Apply a wrapped function to a wrapped value. Propagates any error.
+///
+///   ap(E!fn(T)U, E!T) → (E1||E2)!U
+///
+/// Haskell: `(<*>) :: Applicative f => f (a -> b) -> f a -> f b`
+///
+/// **Zero-cost**: two `try` expressions, no allocation.
+pub inline fn ap(f: anytype, value: anytype) (ErrorType(@TypeOf(f)) || ErrorType(@TypeOf(value)))!FnReturnType(PayloadType(@TypeOf(f))) {
+    return (try f)(try value);
+}
+
+/// Return `value` if successful, otherwise `fallback`.
+///
+///   orElse(E!T, E!T) → E!T
+///
+/// Haskell: `(<|>) :: Alternative f => f a -> f a -> f a`
+///
+/// **Zero-cost**: compiles directly to Zig's `catch` expression.
+pub inline fn orElse(value: anytype, fallback: anytype) @TypeOf(value) {
+    return value catch fallback;
+}
+
 /// Return the success value, or `default` if the result is an error.
 ///
 ///   unwrapOr(E!T, T) → T
@@ -210,6 +232,55 @@ test "andThen: chains multiple fallible operations" {
     // 0 → error (first division)
     const err = andThen(andThen(@as(Err!i32, 0), safeDiv), safeDiv);
     try testing.expectError(error.Bad, err);
+}
+
+// ap ───────────────────────────────────────────────────────────────────────────
+
+test "ap: applies wrapped function to success value" {
+    const double = struct {
+        fn call(x: i32) i32 {
+            return x * 2;
+        }
+    }.call;
+    const result = ap(@as(Err!@TypeOf(double), double), @as(Err!i32, 21));
+    try testing.expectEqual(@as(Err!i32, 42), result);
+}
+
+test "ap: propagates error from function" {
+    const double = struct {
+        fn call(x: i32) i32 {
+            return x * 2;
+        }
+    }.call;
+    const result = ap(@as(Err!@TypeOf(double), error.Bad), @as(Err!i32, 21));
+    try testing.expectError(error.Bad, result);
+}
+
+test "ap: propagates error from value" {
+    const double = struct {
+        fn call(x: i32) i32 {
+            return x * 2;
+        }
+    }.call;
+    const result = ap(@as(Err!@TypeOf(double), double), @as(Err!i32, error.Bad));
+    try testing.expectError(error.Bad, result);
+}
+
+// orElse ───────────────────────────────────────────────────────────────────────
+
+test "orElse: returns first value when successful" {
+    const result = orElse(@as(Err!i32, 1), @as(Err!i32, 2));
+    try testing.expectEqual(@as(Err!i32, 1), result);
+}
+
+test "orElse: returns fallback when first is error" {
+    const result = orElse(@as(Err!i32, error.Bad), @as(Err!i32, 42));
+    try testing.expectEqual(@as(Err!i32, 42), result);
+}
+
+test "orElse: returns fallback error when both fail" {
+    const result = orElse(@as(Err!i32, error.Bad), @as(Err!i32, error.Bad));
+    try testing.expectError(error.Bad, result);
 }
 
 // unwrapOr ─────────────────────────────────────────────────────────────────────
