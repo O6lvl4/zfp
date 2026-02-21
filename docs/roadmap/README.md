@@ -50,6 +50,7 @@ Every module must satisfy the core constraints:
 | `zf` | — | ✅ Done | `id`, `flip`, `const_`, `on` |
 | `tap` | — | ✅ Done | `run`, `typed` |
 | `arrow` | — | ✅ Done | `first`, `second`, `split`, `fanout` |
+| `either` | tagged union | ✅ Done | `map`, `mapLeft`, `bimap`, `andThen`, `isLeft`, `isRight`, `unwrapOr`, `unwrapOrElse`, `fromOption`, `toOption` |
 
 ---
 
@@ -86,7 +87,7 @@ arrow.second(g, .{ a, b })     // apply g only to second element
 
 ## Phase 3 — Typeclass analogs
 
-### `either` — Explicit Left / Right (Bifunctor)
+### ~~`either` — Explicit Left / Right (Bifunctor)~~ ✅ Done
 
 Zig's `anyerror!T` is close to `Either` but the error side is restricted to error sets. `either` provides a proper `Left(A) | Right(B)` tagged union with full `bimap`.
 
@@ -94,8 +95,6 @@ Zig's `anyerror!T` is close to `Either` but the error side is restricted to erro
 const either = @import("zfp").either;
 
 // either.Either(L, R) — a tagged union
-either.left(val)                   // wrap as Left
-either.right(val)                  // wrap as Right
 either.map(e, f)                   // apply f to Right, pass Left unchanged
 either.mapLeft(e, f)               // apply f to Left, pass Right unchanged
 either.bimap(e, leftFn, rightFn)   // apply to whichever side is active

@@ -27,6 +27,7 @@ Pure comptime generics that compile away completely.
 | `zf` | ✅ | Function combinators: `id`, `flip`, `const_`, `on` |
 | `tap` | ✅ | Side-effect injection in pipelines: `run`, `typed` |
 | `arrow` | ✅ | Arrow combinators for pairs: `first`, `second`, `split`, `fanout` |
+| `either` | ✅ | Left/Right sum type: `map`, `mapLeft`, `bimap`, `andThen`, and more |
 
 ---
 
@@ -318,6 +319,69 @@ const result = arrow.split(absInt, strLen, .{ @as(i32, -3), "hello" });
 // Compute two values from a single input
 const stats = arrow.fanout(sumSlice, countSlice, items);
 // stats[0] = sum, stats[1] = count
+```
+
+---
+
+## either
+
+A `Left(L) | Right(R)` sum type for computations that can produce one of two distinct outcomes. Unlike `anyerror!T`, both sides can be any type.
+
+### API
+
+```zig
+const either = @import("zfp").either;
+
+// Type constructor
+const E = either.Either(L, R);    // tagged union: { .left: L } | { .right: R }
+
+// Functor / Monad
+either.map(e, f)                  // apply f to Right; Left unchanged
+either.andThen(e, f)              // flatMap on Right; short-circuit on Left
+
+// Bifunctor
+either.mapLeft(e, f)              // apply f to Left; Right unchanged
+either.bimap(e, lf, rf)           // apply lf or rf to whichever side is active
+
+// Predicates
+either.isLeft(e) bool
+either.isRight(e) bool
+
+// Extract
+either.unwrapOr(e, default)       // Right value or default
+either.unwrapOrElse(e, f)         // Right value or f(left)
+
+// Conversions
+either.fromOption(opt, left_val)  // ?R → Either(L, R)
+either.toOption(e)                // Either(L, R) → ?R
+```
+
+### Example: rich error types
+
+```zig
+const either = @import("zfp").either;
+
+const E = either.Either([]const u8, i32);
+
+const parse = struct {
+    fn call(s: []const u8) E {
+        const n = std.fmt.parseInt(i32, s, 10) catch return .{ .left = "not a number" };
+        return .{ .right = n };
+    }
+}.call;
+
+const validate = struct {
+    fn call(n: i32) E {
+        return if (n >= 0 and n <= 100) .{ .right = n } else .{ .left = "out of range" };
+    }
+}.call;
+
+// Chain without nesting
+const result = either.andThen(parse("42"), validate);
+// → .{ .right = 42 }
+
+const bad = either.andThen(parse("999"), validate);
+// → .{ .left = "out of range" }
 ```
 
 ---
