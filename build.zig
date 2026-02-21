@@ -4,7 +4,8 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const root_mod = b.createModule(.{
+    // Public module — importable as @import("zfp") by dependents
+    const zfp_mod = b.addModule("zfp", .{
         .root_source_file = b.path("src/root.zig"),
         .target = target,
         .optimize = optimize,
@@ -12,10 +13,11 @@ pub fn build(b: *std.Build) void {
 
     const lib = b.addLibrary(.{
         .name = "zfp",
-        .root_module = root_mod,
+        .root_module = zfp_mod,
     });
     b.installArtifact(lib);
 
+    // Tests
     const option_mod = b.createModule(.{
         .root_source_file = b.path("src/option.zig"),
         .target = target,
