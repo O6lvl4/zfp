@@ -25,6 +25,7 @@ Pure comptime generics that compile away completely.
 | `pipe` | ✅ | Left-to-right function pipeline with full type inference |
 | `compose` | ✅ | Compose functions into a reusable callable |
 | `zf` | ✅ | Function combinators: `id`, `flip`, `const_`, `on` |
+| `tap` | ✅ | Side-effect injection in pipelines: `run`, `typed` |
 
 ---
 

@@ -62,12 +62,21 @@ pub fn build(b: *std.Build) void {
     const zf_tests = b.addTest(.{ .root_module = zf_mod });
     const run_zf_tests = b.addRunArtifact(zf_tests);
 
+    const tap_mod = b.createModule(.{
+        .root_source_file = b.path("src/tap.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    const tap_tests = b.addTest(.{ .root_module = tap_mod });
+    const run_tap_tests = b.addRunArtifact(tap_tests);
+
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_option_tests.step);
     test_step.dependOn(&run_result_tests.step);
     test_step.dependOn(&run_pipe_tests.step);
     test_step.dependOn(&run_compose_tests.step);
     test_step.dependOn(&run_zf_tests.step);
+    test_step.dependOn(&run_tap_tests.step);
 
     // Docs
     const install_docs = b.addInstallDirectory(.{
