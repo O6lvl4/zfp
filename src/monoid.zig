@@ -12,6 +12,7 @@
 //!   All     — boolean conjunction:      empty = true,  append = a and b
 //!   First   — first non-null optional:  empty = null,  append = a orelse b
 //!   Last    — last non-null optional:   empty = null,  append = b orelse a
+//!   Endo    — endomorphism composition: concat applies fns left to right
 //!
 //! Each monoid is a namespace with three functions:
 //!   empty()           — identity element
@@ -208,6 +209,59 @@ pub const Last = struct {
             result = item;
         };
         return result;
+    }
+};
+
+// ─── Endo ─────────────────────────────────────────────────────────────────────
+
+/// Monoid over endomorphisms (functions `A → A`) via left-to-right composition.
+///
+///   empty  = identity function (returns its argument)
+///   append = (f, g) → apply f then g  (left to right)
+///   concat = apply all functions in sequence to an initial value
+///
+/// Note: `append` and `empty` require comptime-known functions because Zig
+/// cannot construct closures at runtime. For runtime slices, use `concat`
+/// directly. For comptime composition, `compose.from` is equivalent.
+///
+/// Haskell: `newtype Endo a = Endo { appEndo :: a -> a }`
+///          (Haskell uses right-to-left; zfp uses left-to-right for consistency with `pipe`)
+pub const Endo = struct {
+    /// The identity endomorphism — returns its argument unchanged.
+    ///
+    ///   Endo.empty(i32)(5)  →  5
+    pub inline fn empty(comptime T: type) fn (T) T {
+        return struct {
+            fn call(x: T) T {
+                return x;
+            }
+        }.call;
+    }
+
+    /// Compose two endomorphisms left to right: `append(f, g)(x) = g(f(x))`.
+    ///
+    ///   Endo.append(addOne, double)(3)  →  double(addOne(3)) = 8
+    ///
+    /// Both `f` and `g` must be comptime-known function pointers of the same type.
+    pub inline fn append(comptime T: type, comptime f: fn (T) T, comptime g: fn (T) T) fn (T) T {
+        return struct {
+            fn call(x: T) T {
+                return g(f(x));
+            }
+        }.call;
+    }
+
+    /// Apply a slice of endomorphisms in sequence (left to right) to `initial`.
+    ///
+    ///   Endo.concat(&.{addOne, double, negate}, @as(i32, 3))  →  -8
+    ///   Endo.concat(&([_]*const fn(i32)i32{})[0..], @as(i32, 3))  →  3  (identity)
+    ///
+    /// Unlike other monoids, `concat` takes an additional `initial` value because
+    /// Zig cannot construct a new composed function at runtime without allocation.
+    pub inline fn concat(items: anytype, initial: anytype) @TypeOf(initial) {
+        var acc = initial;
+        for (items) |f| acc = f(acc);
+        return acc;
     }
 };
 
@@ -424,4 +478,52 @@ test "First and Last: bracket a sequence" {
     const items = [_]?i32{ null, 1, 2, 3, null };
     try testing.expectEqual(@as(?i32, 1), First.concat(&items));
     try testing.expectEqual(@as(?i32, 3), Last.concat(&items));
+}
+
+// Endo ─────────────────────────────────────────────────────────────────────────
+
+const addOne = struct {
+    fn call(x: i32) i32 {
+        return x + 1;
+    }
+}.call;
+
+const double = struct {
+    fn call(x: i32) i32 {
+        return x * 2;
+    }
+}.call;
+
+const negate = struct {
+    fn call(x: i32) i32 {
+        return -x;
+    }
+}.call;
+
+test "Endo.empty: identity function" {
+    try testing.expectEqual(@as(i32, 5), Endo.empty(i32)(@as(i32, 5)));
+    try testing.expectEqual(@as(i32, 0), Endo.empty(i32)(@as(i32, 0)));
+}
+
+test "Endo.append: composes left to right" {
+    const f = Endo.append(i32, addOne, double); // double(addOne(x))
+    try testing.expectEqual(@as(i32, 8), f(@as(i32, 3))); // (3+1)*2 = 8
+}
+
+test "Endo.append: identity laws" {
+    const f = Endo.append(i32, addOne, Endo.empty(i32));
+    try testing.expectEqual(@as(i32, 4), f(@as(i32, 3)));
+    const g = Endo.append(i32, Endo.empty(i32), addOne);
+    try testing.expectEqual(@as(i32, 4), g(@as(i32, 3)));
+}
+
+test "Endo.concat: applies functions left to right" {
+    const fns = [_]*const fn (i32) i32{ addOne, double, negate };
+    // negate(double(addOne(3))) = negate(double(4)) = negate(8) = -8
+    try testing.expectEqual(@as(i32, -8), Endo.concat(&fns, @as(i32, 3)));
+}
+
+test "Endo.concat: empty slice returns initial value" {
+    const fns = [_]*const fn (i32) i32{};
+    try testing.expectEqual(@as(i32, 42), Endo.concat(&fns, @as(i32, 42)));
 }

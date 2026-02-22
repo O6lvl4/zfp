@@ -11,6 +11,7 @@
 //!   mapLeft(e, f)            — apply f to Left;  leave Right unchanged
 //!   bimap(e, lf, rf)         — apply lf to Left or rf to Right
 //!   andThen(e, f)            — flatMap on Right; short-circuit on Left
+//!   ap(ef, ea)               — apply wrapped function to wrapped value
 //!   isLeft(e)                — true if Left
 //!   isRight(e)               — true if Right
 //!   unwrapOr(e, default)     — Right value or default
@@ -52,6 +53,19 @@ fn RightOf(comptime E: type) type {
         if (std.mem.eql(u8, field.name, "right")) return field.type;
     }
     @compileError("not an Either type: missing `right` field");
+}
+
+fn FnReturnType(comptime F: type) type {
+    return switch (@typeInfo(F)) {
+        .@"fn" => |info| info.return_type orelse
+            @compileError("Function must declare an explicit return type"),
+        .pointer => |ptr| switch (@typeInfo(ptr.child)) {
+            .@"fn" => |info| info.return_type orelse
+                @compileError("Function must declare an explicit return type"),
+            else => @compileError("Expected a function or function pointer, got: " ++ @typeName(F)),
+        },
+        else => @compileError("Expected a function type, got: " ++ @typeName(F)),
+    };
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────
@@ -121,6 +135,29 @@ pub inline fn andThen(e: anytype, f: anytype) @TypeOf(f(@as(RightOf(@TypeOf(e)),
     return switch (e) {
         .left => |l| Ret{ .left = l },
         .right => |r| f(r),
+    };
+}
+
+/// Apply a wrapped function to a wrapped value.
+///
+///   ap(.{.right = f}, .{.right = x})  →  .{.right = f(x)}
+///   ap(.{.left  = l}, .{.right = x})  →  .{.left  = l}    (function was Left)
+///   ap(.{.right = f}, .{.left  = l})  →  .{.left  = l}    (value was Left)
+///
+/// Haskell: `(<*>) :: Either l (a -> b) -> Either l a -> Either l b`
+///
+/// **Zero-cost**: inlines to a nested switch with at most one function call.
+pub inline fn ap(ef: anytype, ea: anytype) Either(
+    LeftOf(@TypeOf(ef)),
+    FnReturnType(RightOf(@TypeOf(ef))),
+) {
+    const Ret = Either(LeftOf(@TypeOf(ef)), FnReturnType(RightOf(@TypeOf(ef))));
+    return switch (ef) {
+        .left => |l| Ret{ .left = l },
+        .right => |f| switch (ea) {
+            .left => |l| Ret{ .left = l },
+            .right => |a| Ret{ .right = f(a) },
+        },
     };
 }
 
@@ -331,6 +368,39 @@ test "andThen: propagates first Left in chain" {
     const e = StrInt{ .right = 60 };
     const result = andThen(andThen(e, step), step); // 60 → 120 → Left
     try testing.expectEqualStrings("too large", result.left);
+}
+
+// ap ───────────────────────────────────────────────────────────────────────────
+
+const FnStrInt = Either([]const u8, fn (i32) i32);
+const FnStrBool = Either([]const u8, fn (i32) bool);
+
+test "ap: applies Right function to Right value" {
+    const ef = FnStrInt{ .right = double };
+    const ea = StrInt{ .right = 3 };
+    const result = ap(ef, ea);
+    try testing.expectEqual(@as(i32, 6), result.right);
+}
+
+test "ap: Left function short-circuits" {
+    const ef = FnStrInt{ .left = "no function" };
+    const ea = StrInt{ .right = 3 };
+    const result = ap(ef, ea);
+    try testing.expectEqualStrings("no function", result.left);
+}
+
+test "ap: Left value short-circuits" {
+    const ef = FnStrInt{ .right = double };
+    const ea = StrInt{ .left = "no value" };
+    const result = ap(ef, ea);
+    try testing.expectEqualStrings("no value", result.left);
+}
+
+test "ap: function can change Right type" {
+    const ef = FnStrBool{ .right = isPositive };
+    const ea = StrInt{ .right = 5 };
+    const result = ap(ef, ea);
+    try testing.expect(result.right);
 }
 
 // unwrapOr ─────────────────────────────────────────────────────────────────────
