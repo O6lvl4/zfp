@@ -50,6 +50,18 @@ fn FnReturnType(comptime F: type) type {
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
+/// Apply `f` to the error; leave the success value unchanged.
+///
+///   mapErr(E!T, fn(E) F) → F!T
+///
+/// Haskell: `Data.Bifunctor.first :: (a -> b) -> Either a c -> Either b c`
+/// Rust:    `Result::map_err`
+///
+/// **Zero-cost**: compiles to a single `catch` branch.
+pub inline fn mapErr(value: anytype, f: anytype) FnReturnType(@TypeOf(f))!PayloadType(@TypeOf(value)) {
+    if (value) |v| return v else |err| return f(err);
+}
+
 /// Apply `f` to the success value. Propagates errors unchanged.
 ///
 ///   map(E!T, fn(T) U) → E!U
@@ -156,6 +168,38 @@ test "isErr: error returns true" {
 
 test "isErr: success returns false" {
     try testing.expect(!isErr(@as(Err!i32, 42)));
+}
+
+// mapErr ───────────────────────────────────────────────────────────────────────
+
+const Err2 = error{Other};
+
+test "mapErr: passes success value through unchanged" {
+    const result = mapErr(@as(Err!i32, 42), struct {
+        fn call(_: anyerror) Err2 {
+            return error.Other;
+        }
+    }.call);
+    try testing.expectEqual(@as(Err2!i32, 42), result);
+}
+
+test "mapErr: transforms the error" {
+    const result = mapErr(@as(Err!i32, error.Bad), struct {
+        fn call(_: anyerror) Err2 {
+            return error.Other;
+        }
+    }.call);
+    try testing.expectError(error.Other, result);
+}
+
+test "mapErr: can map error to a different error set" {
+    const OtherErr = error{NotFound};
+    const result = mapErr(@as(Err![]const u8, error.Bad), struct {
+        fn call(_: anyerror) OtherErr {
+            return error.NotFound;
+        }
+    }.call);
+    try testing.expectError(error.NotFound, result);
 }
 
 // map ──────────────────────────────────────────────────────────────────────────
