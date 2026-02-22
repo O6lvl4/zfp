@@ -30,6 +30,13 @@ fn ErrorType(comptime EU: type) type {
     };
 }
 
+/// Assert that T is an error union type; emit a readable error if not.
+fn requireErrorUnion(comptime T: type, comptime caller: []const u8) void {
+    if (@typeInfo(T) != .error_union) {
+        @compileError(caller ++ ": expected error union (E!T), got " ++ @typeName(T));
+    }
+}
+
 /// Get the return type from a function type or function-pointer type.
 fn FnReturnType(comptime F: type) type {
     return switch (@typeInfo(F)) {
@@ -78,6 +85,7 @@ pub inline fn map(value: anytype, f: anytype) ErrorType(@TypeOf(value))!FnReturn
 ///
 /// **Zero-cost**: compiles to a `try` followed by a tail call.
 pub inline fn andThen(value: anytype, f: anytype) FnReturnType(@TypeOf(f)) {
+    comptime requireErrorUnion(@TypeOf(value), "result.andThen");
     return f(value catch |err| return err);
 }
 
@@ -100,6 +108,7 @@ pub inline fn ap(f: anytype, value: anytype) (ErrorType(@TypeOf(f)) || ErrorType
 ///
 /// **Zero-cost**: compiles directly to Zig's `catch` expression.
 pub inline fn orElse(value: anytype, fallback: anytype) @TypeOf(value) {
+    comptime requireErrorUnion(@TypeOf(value), "result.orElse");
     return value catch fallback;
 }
 
@@ -125,6 +134,7 @@ pub inline fn unwrapOrElse(value: anytype, f: anytype) PayloadType(@TypeOf(value
 ///
 /// **Zero-cost**: a single null/error comparison.
 pub inline fn isOk(value: anytype) bool {
+    comptime requireErrorUnion(@TypeOf(value), "result.isOk");
     _ = value catch return false;
     return true;
 }
@@ -133,6 +143,7 @@ pub inline fn isOk(value: anytype) bool {
 ///
 /// **Zero-cost**: a single null/error comparison.
 pub inline fn isErr(value: anytype) bool {
+    comptime requireErrorUnion(@TypeOf(value), "result.isErr");
     _ = value catch return true;
     return false;
 }
