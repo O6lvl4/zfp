@@ -1,4 +1,4 @@
-//! func.zig — Zero-cost function combinators for Zig.
+//! zf.zig — Zero-cost function combinators for Zig.
 //!
 //! Primitive building blocks for composing and transforming functions.
 //! Inspired by Haskell's Prelude: id, flip, const, on.
