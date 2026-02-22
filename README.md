@@ -254,8 +254,8 @@ Add to your `build.zig.zon`:
 ```zig
 .dependencies = .{
     .zfp = .{
-        .url = "https://github.com/O6lvl4/zfp/archive/<commit>.tar.gz",
-        .hash = "<hash>",
+        .url = "https://github.com/O6lvl4/zfp/archive/refs/tags/v0.1.0.tar.gz",
+        .hash = "zfp-0.1.0-mqQCVeXtAQAq0F8xYpiUA6Pcm5Qm_33YVDxkhNq_7nMV",
     },
 },
 ```
