@@ -1,2 +1,4 @@
 .zig-cache/
 zig-out/
+test_assert
+src/test_assert
