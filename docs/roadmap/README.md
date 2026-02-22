@@ -18,22 +18,22 @@ Every module must satisfy the core constraints:
 | Haskell concept | zfp module | Notes |
 |----------------|-----------|-------|
 | `Maybe` | `option` ✅ | Native `?T` |
-| `Either e a` | `either` | Native tagged union |
-| `Functor` (`fmap`) | `map` in each module | Per-type, no HKT |
-| `Monad` (`>>=`) | `andThen` in each module | Per-type |
-| `Applicative` (`<*>`) | `ap` in each module | Applying wrapped fn to wrapped value |
-| `Alternative` (`<\|>`) | `orElse` in each module | First success wins |
+| `Either e a` | `either` ✅ | Native tagged union |
+| `Functor` (`fmap`) | `map` in each module ✅ | Per-type, no HKT |
+| `Monad` (`>>=`) | `andThen` in each module ✅ | Per-type |
+| `Applicative` (`<*>`) | `ap` in each module ✅ | Applying wrapped fn to wrapped value |
+| `Alternative` (`<\|>`) | `orElse` in each module ✅ | First success wins |
 | `Category` (`id`, `>>>`) | `compose` ✅ | `from`, `run` |
-| `Arrow` (`arr`, `>>>`, `***`) | `arrow` | Builds on `compose` |
-| `Foldable` | `slice` | `fold`, `all`, `any`, `find` over slices |
+| `Arrow` (`arr`, `>>>`, `***`) | `arrow` ✅ | Builds on `compose` |
+| `Foldable` | `slice` ✅ | `fold`, `all`, `any`, `find` over slices |
 | `Traversable` | `traverse` | Needs allocation — clearly marked |
-| `Semigroup` / `Monoid` | `monoid` | `append`, `empty` protocol |
+| `Semigroup` / `Monoid` | `monoid` ✅ | `append`, `empty` protocol |
 | `State` monad | `state` | Comptime pure, zero-cost |
 | `Reader` monad | `reader` | Dependency injection pattern |
 | `Writer` monad | `writer` | Accumulation / logging |
 | `Cont` monad | `cont` | Continuation-passing style |
 | Function combinators | `zf` ✅ | `id`, `flip`, `const_`, `on` |
-| Debug / tracing | `tap` | Side-effects in pipelines |
+| Debug / tracing | `tap` ✅ | Side-effects in pipelines |
 | `List` monad | `list` | Requires allocation — clearly marked |
 | `IO` monad | — | Not applicable; Zig is imperative |
 
@@ -44,7 +44,7 @@ Every module must satisfy the core constraints:
 | Module | Native type | Status | Key functions |
 |--------|------------|--------|---------------|
 | `option` | `?T` | ✅ Done | `map`, `andThen`, `unwrapOr`, `filter`, `isSome`, `isNone` |
-| `result` | `anyerror!T` | ✅ Done | `map`, `andThen`, `unwrapOr`, `unwrapOrElse`, `toOption`, `isOk`, `isErr` |
+| `result` | `anyerror!T` | ✅ Done | `map`, `mapErr`, `andThen`, `unwrapOr`, `unwrapOrElse`, `toOption`, `isOk`, `isErr` |
 | `pipe` | — | ✅ Done | `run` |
 | `compose` | — | ✅ Done | `from`, `run` |
 | `zf` | — | ✅ Done | `id`, `flip`, `const_`, `on` |
@@ -52,7 +52,7 @@ Every module must satisfy the core constraints:
 | `arrow` | — | ✅ Done | `first`, `second`, `split`, `fanout` |
 | `either` | tagged union | ✅ Done | `map`, `mapLeft`, `bimap`, `andThen`, `isLeft`, `isRight`, `unwrapOr`, `unwrapOrElse`, `fromOption`, `toOption` |
 | `slice` | `[]T` | ✅ Done | `fold`, `all`, `any`, `find`, `findIndex`, `count`, `forEach`, `sum`, `min`, `max` |
-| `monoid` | — | ✅ Done | `Sum`, `Product`, `Any`, `All`, `First`, `Last` (each with `empty`, `append`, `concat`) |
+| `monoid` | — | ✅ Done | `Sum`, `Product`, `Any`, `All`, `First`, `Last`, `Endo` (each with `empty`, `append`, `concat`) |
 
 ---
 
