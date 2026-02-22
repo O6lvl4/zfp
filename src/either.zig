@@ -42,17 +42,23 @@ pub fn Either(comptime L: type, comptime R: type) type {
 // ─── Internal helpers ─────────────────────────────────────────────────────────
 
 fn LeftOf(comptime E: type) type {
+    if (@typeInfo(E) != .@"union") {
+        @compileError("expected Either(L, R) tagged union, got " ++ @typeName(E));
+    }
     for (@typeInfo(E).@"union".fields) |field| {
         if (std.mem.eql(u8, field.name, "left")) return field.type;
     }
-    @compileError("not an Either type: missing `left` field");
+    @compileError("expected Either(L, R) with .left field, got " ++ @typeName(E));
 }
 
 fn RightOf(comptime E: type) type {
+    if (@typeInfo(E) != .@"union") {
+        @compileError("expected Either(L, R) tagged union, got " ++ @typeName(E));
+    }
     for (@typeInfo(E).@"union".fields) |field| {
         if (std.mem.eql(u8, field.name, "right")) return field.type;
     }
-    @compileError("not an Either type: missing `right` field");
+    @compileError("expected Either(L, R) with .right field, got " ++ @typeName(E));
 }
 
 fn FnReturnType(comptime F: type) type {

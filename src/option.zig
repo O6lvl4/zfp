@@ -20,6 +20,13 @@ fn ChildType(comptime OptT: type) type {
     };
 }
 
+/// Assert that T is an optional type; emit a readable error if not.
+fn requireOptional(comptime T: type, comptime caller: []const u8) void {
+    if (@typeInfo(T) != .optional) {
+        @compileError(caller ++ ": expected optional type (?T), got " ++ @typeName(T));
+    }
+}
+
 /// Extract the return type from a function type or function-pointer type.
 /// Emits a compile error for non-function types or functions with inferred
 /// return types.
@@ -50,6 +57,7 @@ fn FnReturnType(comptime F: type) type {
 /// **Zero-cost**: `inline` + no indirection → a single conditional branch
 /// in the generated code, identical to a hand-written `if (v) |x| f(x)`.
 pub inline fn map(value: anytype, f: anytype) ?FnReturnType(@TypeOf(f)) {
+    comptime requireOptional(@TypeOf(value), "option.map");
     return if (value) |v| f(v) else null;
 }
 
@@ -61,6 +69,7 @@ pub inline fn map(value: anytype, f: anytype) ?FnReturnType(@TypeOf(f)) {
 ///
 /// **Zero-cost**: identical machine code to nested `if` unwrapping.
 pub inline fn andThen(value: anytype, f: anytype) FnReturnType(@TypeOf(f)) {
+    comptime requireOptional(@TypeOf(value), "option.andThen");
     return if (value) |v| f(v) else null;
 }
 
@@ -95,6 +104,7 @@ pub inline fn ap(f: anytype, value: anytype) ?FnReturnType(ChildType(@TypeOf(f))
 ///
 /// **Zero-cost**: compiles directly to Zig's `orelse` expression.
 pub inline fn orElse(value: anytype, fallback: anytype) @TypeOf(value) {
+    comptime requireOptional(@TypeOf(value), "option.orElse");
     return value orelse fallback;
 }
 
@@ -104,6 +114,7 @@ pub inline fn orElse(value: anytype, fallback: anytype) @TypeOf(value) {
 ///
 /// **Zero-cost**: two nested branches, no allocation, no boxing.
 pub inline fn filter(value: anytype, predicate: anytype) @TypeOf(value) {
+    comptime requireOptional(@TypeOf(value), "option.filter");
     if (value) |v| {
         if (predicate(v)) return v; // T coerces to ?T at the return site
     }
@@ -115,6 +126,7 @@ pub inline fn filter(value: anytype, predicate: anytype) @TypeOf(value) {
 /// **Zero-cost**: a null comparison; optimised away at compile time when the
 /// value is comptime-known.
 pub inline fn isSome(value: anytype) bool {
+    comptime requireOptional(@TypeOf(value), "option.isSome");
     return value != null;
 }
 
@@ -122,6 +134,7 @@ pub inline fn isSome(value: anytype) bool {
 ///
 /// **Zero-cost**: same as `isSome`.
 pub inline fn isNone(value: anytype) bool {
+    comptime requireOptional(@TypeOf(value), "option.isNone");
     return value == null;
 }
 
